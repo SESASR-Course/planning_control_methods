@@ -23,8 +23,10 @@ class Dijkstra(BFS):
         for i in range(costmap.shape[0]):
             for j in range(costmap.shape[1]):
                 if self.grid_map[i, j] == 1:
-                    costmap[i - 2 : i + 3, j - 2 : j + 3] += 50
-        costmap[costmap == 1] = 1000
+                    costmap[i - 2 : i + 3, j - 2 : j + 3] += 10
+                    costmap[i - 1 : i + 2, j - 1 : j + 2] += 20
+        costmap[self.grid_map == 1] = 255
+        costmap[costmap > 255] = 255
         return costmap
 
     def node_insertion(self, new_node, current, goal):
