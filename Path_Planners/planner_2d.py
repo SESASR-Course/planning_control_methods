@@ -18,7 +18,7 @@ class Planner2D:
         # 8-connectivity movements
         # 4-connectivity movements
 
-    def plan(self, start, goal):
+    def plan(self, start, goal, ax=None):
         """Method to implement the Dijkstra algorithm
 
         Args:
@@ -39,8 +39,8 @@ class Planner2D:
         ):
             raise ValueError("Invalid start or goal node")
 
-        self.plot_start(start_node)
-        self.plot_goal(goal_node)
+        self.plot_start(start_node, ax)
+        self.plot_goal(goal_node, ax)
 
         self.initialize_structures(start_node, goal_node)
 
@@ -70,7 +70,7 @@ class Planner2D:
                     new_node, current_node, goal_node
                 )  # Insert the new node in the frontier
 
-                self.plot_node(current_node, plt.cm.viridis)
+                self.plot_node(current_node, plt.cm.viridis, ax)
 
         if current_node == goal_node:
             path = []
@@ -87,20 +87,6 @@ class Planner2D:
 
     def initialize_structures(self, start_node, goal_node):
         raise NotImplementedError("This method should be implemented in the subclass")
-
-    def plot_path(self, path):
-        """Method to plot the path found by the planner
-
-        Args:
-          path: list of tuples
-        """
-
-        plt.plot(
-            [x[1] + 0.5 for x in path],
-            [self.grid_map.shape[0] - x[0] - 0.5 for x in path],
-            color="red",
-            linewidth=2,
-        )
 
     def check_on_map(self, position):
         """Method to check if a position is inside the map"""
@@ -135,26 +121,39 @@ class Planner2D:
         """Method to compute the heuristic cost from the current node to the end node"""
         raise NotImplementedError("This method should be implemented in the subclass")
 
-    def plot_node(self, node, color_map):
+    def plot_node(self, node, color_map, ax=None):
         """Method to plot a node in the grid map with a cross and color based on cost"""
         norm = plt.Normalize(vmin=0, vmax=self.grid_map.shape[0] * 1.5)
-        plt.plot(
+        ax.plot(
             node.position[1] + 0.5,
             self.grid_map.shape[0] - node.position[0] - 0.5,
             color=color_map(norm(node.f)),
             marker="x",
         )
 
-    def plot_start(self, start_node):
-        plt.plot(
+    def plot_start(self, start_node, ax=None):
+        ax.plot(
             start_node.position[1] + 0.5,
             self.grid_map.shape[0] - start_node.position[0] - 0.5,
             "go",
         )
 
-    def plot_goal(self, goal_node):
-        plt.plot(
+    def plot_goal(self, goal_node, ax=None):
+        ax.plot(
             goal_node.position[1] + 0.5,
             self.grid_map.shape[0] - goal_node.position[0] - 0.5,
             "ro",
+        )
+
+    def plot_path(self, path, ax=None):
+        """Method to plot the path found by the planner
+
+        Args:
+          path: list of tuples
+        """
+        ax.plot(
+            [x[1] + 0.5 for x in path],
+            [self.grid_map.shape[0] - x[0] - 0.5 for x in path],
+            color="blue",
+            linewidth=2,
         )

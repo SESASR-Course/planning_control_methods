@@ -1,6 +1,6 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from matplotlib import colors
+import matplotlib.pyplot as plt
 from PIL import Image
 import skimage
 from typing import TypeVar
@@ -66,41 +66,52 @@ def compute_map_occ(map):
     return obst_poses, end_points
 
 
-def plot_gridmap(map, title):
+def plot_gridmap(map, title, ax):
     cmap = colors.ListedColormap(["White", "Black"])
-    plt.figure(figsize=(6, 6))
-    plt.pcolor(map[::-1], cmap=cmap, edgecolors="k", linewidths=1)
+
+    ax.pcolor(map[::-1], cmap=cmap, edgecolors="k", linewidths=1)
     if map.shape[0] < 20:
-        plt.xticks(ticks=range(map.shape[1] + 1), labels=range(map.shape[1] + 1))
-        plt.yticks(ticks=range(map.shape[0]), labels=range(map.shape[0], 0, -1))
+        ax.set_xticks(ticks=range(map.shape[1] + 1), labels=range(map.shape[1] + 1))
+        ax.set_yticks(ticks=range(map.shape[0]), labels=range(map.shape[0], 0, -1))
     else:
-        plt.xticks(
+        ax.set_xticks(
             ticks=range(0, map.shape[1] + 1, 5), labels=range(0, map.shape[1] + 1, 5)
         )
-        plt.yticks(ticks=range(0, map.shape[0], 5), labels=range(map.shape[0], 0, -5))
-    plt.axis("equal")
-    plt.title(title, fontsize=14)
+        ax.set_yticks(
+            ticks=range(0, map.shape[0], 5), labels=range(map.shape[0], 0, -5)
+        )
+
+    ax.set_xlim(0, map.shape[0])
+    ax.set_ylim(0, map.shape[1])
+    ax.axis("equal")
+    ax.set_title(title, fontsize=14)
 
 
-def plot_costmap(costmap, title):
-    plt.figure(figsize=(6, 6))
-    plt.pcolor(costmap[::-1], cmap="viridis", edgecolors="k", linewidths=1)
-    plt.colorbar()
+def plot_costmap(costmap, title, ax):
+    ax.pcolor(costmap[::-1], cmap="Blues", edgecolors="k", linewidths=1)
+
+    norm = colors.Normalize(vmin=0, vmax=np.max(costmap))
+    sm = plt.cm.ScalarMappable(cmap="Blues", norm=norm)
+    sm.set_array([])
+
+    ax.set_xlim(0, costmap.shape[0])
+    ax.set_ylim(0, costmap.shape[1])
+
     if costmap.shape[0] < 20:
-        plt.xticks(
+        ax.set_xticks(
             ticks=range(costmap.shape[1] + 1), labels=range(costmap.shape[1] + 1)
         )
-        plt.yticks(ticks=range(costmap.shape[0]), labels=range(costmap.shape[0], 0, -1))
+        ax.yticks(ticks=range(costmap.shape[0]), labels=range(costmap.shape[0], 0, -1))
     else:
-        plt.xticks(
+        ax.set_xticks(
             ticks=range(0, costmap.shape[1] + 1, 5),
             labels=range(0, costmap.shape[1] + 1, 5),
         )
-        plt.yticks(
+        ax.set_yticks(
             ticks=range(0, costmap.shape[0], 5), labels=range(costmap.shape[0], 0, -5)
         )
-    plt.axis("equal")
-    plt.title(title, fontsize=14)
+    ax.axis("equal")
+    ax.set_title(title, fontsize=14)
 
 
 class Movements:
