@@ -4,8 +4,8 @@ from queue import PriorityQueue
 
 class Greedy(Planner2D):
 
-    def __init__(self, grid_map, movements_class):
-        super().__init__(grid_map, movements_class)
+    def __init__(self, grid_map, movements_class, plot_enabled=False):
+        super().__init__(grid_map, movements_class, plot_enabled)
         self.frontier = PriorityQueue()
 
     def initialize_structures(self, start_node, goal_node):

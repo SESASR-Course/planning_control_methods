@@ -70,21 +70,7 @@ def plot_gridmap(map, title, ax):
     cmap = colors.ListedColormap(["White", "Black"])
 
     ax.pcolor(map[::-1], cmap=cmap, edgecolors="k", linewidths=1)
-    if map.shape[0] < 20:
-        ax.set_xticks(ticks=range(map.shape[1] + 1), labels=range(map.shape[1] + 1))
-        ax.set_yticks(ticks=range(map.shape[0]), labels=range(map.shape[0], 0, -1))
-    else:
-        ax.set_xticks(
-            ticks=range(0, map.shape[1] + 1, 5), labels=range(0, map.shape[1] + 1, 5)
-        )
-        ax.set_yticks(
-            ticks=range(0, map.shape[0], 5), labels=range(map.shape[0], 0, -5)
-        )
-
-    ax.set_xlim(0, map.shape[0])
-    ax.set_ylim(0, map.shape[1])
-    ax.axis("equal")
-    ax.set_title(title, fontsize=14)
+    plot_map(map, title, ax)
 
 
 def plot_costmap(costmap, title, ax):
@@ -94,23 +80,31 @@ def plot_costmap(costmap, title, ax):
     sm = plt.cm.ScalarMappable(cmap="Blues", norm=norm)
     sm.set_array([])
 
-    ax.set_xlim(0, costmap.shape[0])
-    ax.set_ylim(0, costmap.shape[1])
+    plot_map(costmap, title, ax)
 
-    if costmap.shape[0] < 20:
+
+def plot_map(map, title, ax):
+    if map.shape[0] < 20:
         ax.set_xticks(
-            ticks=range(costmap.shape[1] + 1), labels=range(costmap.shape[1] + 1)
-        )
-        ax.yticks(ticks=range(costmap.shape[0]), labels=range(costmap.shape[0], 0, -1))
-    else:
-        ax.set_xticks(
-            ticks=range(0, costmap.shape[1] + 1, 5),
-            labels=range(0, costmap.shape[1] + 1, 5),
+            ticks=np.array(range(map.shape[1])) + 0.5, labels=range(map.shape[1])
         )
         ax.set_yticks(
-            ticks=range(0, costmap.shape[0], 5), labels=range(costmap.shape[0], 0, -5)
+            ticks=np.array(range(map.shape[0])) + 0.5,
+            labels=range(map.shape[0] - 1, -1, -1),
         )
-    ax.axis("equal")
+    else:
+        ax.set_xticks(
+            ticks=np.array(range(0, map.shape[1], 5)) + 0.5,
+            labels=range(0, map.shape[1], 5),
+        )
+        ax.set_yticks(
+            ticks=np.array(range(0, map.shape[0], 5)) + 0.5,
+            labels=range(map.shape[0] - 1, -1, -5),
+        )
+
+    ax.set_xlim(0, map.shape[0])
+    ax.set_ylim(0, map.shape[1])
+    # ax.axis("equal")
     ax.set_title(title, fontsize=14)
 
 

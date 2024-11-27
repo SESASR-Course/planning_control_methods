@@ -1,24 +1,27 @@
 import utils
 import matplotlib.pyplot as plt
+from matplotlib.collections import CircleCollection
 from utils import Node
+import numpy as np
 
 
 class Planner2D:
     """Base class to implement a 2D planner"""
 
-    def __init__(self, grid_map, movements_class: utils.Movements):
+    def __init__(self, grid_map, movements_class: utils.Movements, plot_enabled=False):
         self.grid_map = grid_map
         self.movements_class = movements_class
         self.frontier = (
             None  # PriorityQueue() # Queue() depending on the subclass implementation
         )
         self.came_from = {}
+        self.plot_enabled = plot_enabled
 
         # Define the movements class to use in the planner
         # 8-connectivity movements
         # 4-connectivity movements
 
-    def plan(self, start, goal, ax=None):
+    def plan(self, start, goal, ax=None, fig=None):
         """Method to implement the Dijkstra algorithm
 
         Args:
@@ -29,6 +32,32 @@ class Planner2D:
           Path: list of tuples
         """
 
+        def update_plot():
+            """Update the plot with the current frame"""
+            norm = plt.Normalize(vmin=0, vmax=255)
+            nodes = list(self.came_from.keys())
+            nodes = [node.position for node in nodes]
+            nodes = np.array(nodes)
+            nodes = np.vstack(nodes)
+            node_costs = [node.f for node in list(self.came_from.keys())]
+            node_costs = np.array(node_costs)
+            nodes_x = nodes[:, 1]
+            nodes_y = nodes[:, 0]
+            nodes_for_plot = np.vstack(
+                [nodes_x + 0.5, self.grid_map.shape[0] - nodes_y - 0.5]
+            ).T
+            scatter = CircleCollection(
+                sizes=[30] * len(nodes),
+                offsets=nodes_for_plot,
+                array=norm(node_costs),
+                cmap="viridis",
+                edgecolors="face",
+                transOffset=ax.transData,
+                alpha=0.5,
+            )
+
+            return scatter
+
         start_node = Node(start)
         goal_node = Node(goal)
 
@@ -38,18 +67,21 @@ class Planner2D:
             and self.check_valid_position(goal_node.position)
         ):
             raise ValueError("Invalid start or goal node")
-
-        self.plot_start(start_node, ax)
-        self.plot_goal(goal_node, ax)
+        if self.plot_enabled:
+            self.plot_node(start_node, "green", ax)
+            self.plot_node(goal_node, "red", ax)
 
         self.initialize_structures(start_node, goal_node)
+        frames = []
 
         while self.frontier:
+            frame = []
             current_node = self.frontier.get()
 
             if current_node == goal_node:  # Early exit condition
                 break
 
+            plot_to_update = False
             for (
                 new_position
             ) in (
@@ -69,8 +101,14 @@ class Planner2D:
                 self.node_insertion(
                     new_node, current_node, goal_node
                 )  # Insert the new node in the frontier
-
-                self.plot_node(current_node, plt.cm.viridis, ax)
+                # if at least one node was inserted in the frontier update the plot
+                plot_to_update = True
+            if plot_to_update and self.plot_enabled:
+                scatter = update_plot()
+                frame.append(ax.add_collection(scatter))
+                frames.append(frame)
+            else:
+                print("No new nodes were inserted in the frontier")
 
         if current_node == goal_node:
             path = []
@@ -78,7 +116,11 @@ class Planner2D:
             while current is not None:
                 path.append(current.position)
                 current = self.came_from[current]
-            return path[::-1]
+            if self.plot_enabled:
+                path_plt = self.plot_path(path, ax)
+                frame = [ax.add_collection(scatter), path_plt]
+                frames.append(frame)
+            return path[::-1], frames
 
         raise ValueError("No path found")
 
@@ -121,28 +163,17 @@ class Planner2D:
         """Method to compute the heuristic cost from the current node to the end node"""
         raise NotImplementedError("This method should be implemented in the subclass")
 
-    def plot_node(self, node, color_map, ax=None):
+    def plot_node(self, node, color, ax, radius=0.3):
         """Method to plot a node in the grid map with a cross and color based on cost"""
-        norm = plt.Normalize(vmin=0, vmax=self.grid_map.shape[0] * 1.5)
-        ax.plot(
-            node.position[1] + 0.5,
-            self.grid_map.shape[0] - node.position[0] - 0.5,
-            color=color_map(norm(node.f)),
-            marker="x",
-        )
-
-    def plot_start(self, start_node, ax=None):
-        ax.plot(
-            start_node.position[1] + 0.5,
-            self.grid_map.shape[0] - start_node.position[0] - 0.5,
-            "go",
-        )
-
-    def plot_goal(self, goal_node, ax=None):
-        ax.plot(
-            goal_node.position[1] + 0.5,
-            self.grid_map.shape[0] - goal_node.position[0] - 0.5,
-            "ro",
+        return ax.add_artist(
+            plt.Circle(
+                (
+                    node.position[1] + 0.5,
+                    self.grid_map.shape[0] - node.position[0] - 0.5,
+                ),
+                radius=radius,
+                color=color,
+            )
         )
 
     def plot_path(self, path, ax=None):
@@ -151,9 +182,11 @@ class Planner2D:
         Args:
           path: list of tuples
         """
-        ax.plot(
-            [x[1] + 0.5 for x in path],
-            [self.grid_map.shape[0] - x[0] - 0.5 for x in path],
-            color="blue",
-            linewidth=2,
+        return ax.add_artist(
+            plt.Line2D(
+                [x[1] + 0.5 for x in path],
+                [self.grid_map.shape[0] - x[0] - 0.5 for x in path],
+                color="blue",
+                linewidth=2,
+            )
         )

@@ -4,8 +4,8 @@ from queue import PriorityQueue
 
 class Dijkstra(BFS):
 
-    def __init__(self, grid_map, movements_class):
-        super().__init__(grid_map, movements_class)
+    def __init__(self, grid_map, movements_class, plot_enabled=False):
+        super().__init__(grid_map, movements_class, plot_enabled)
         self.frontier = PriorityQueue()
         self.costmap = self.generate_costmap()
         self.cost_so_far = {}
