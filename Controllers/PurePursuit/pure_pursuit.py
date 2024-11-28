@@ -31,7 +31,7 @@ class PurePursuitController:
         """
         index = self.pind
         while (index + 1) < len(self.path):
-            distance = np.linalg.norm(self.path[index] - self.robot.x[:2].T)
+            distance = np.linalg.norm(self.path[index] - self.robot.pose[:2].T)
             if distance > self.Lt:
                 break
             index += 1
@@ -48,7 +48,7 @@ class PurePursuitController:
         Return:
         vt: target velocity
         """
-        dist_goal = np.linalg.norm(self.robot.x[:2].T - self.path[-1])
+        dist_goal = np.linalg.norm(self.robot.pose[:2].T - self.path[-1])
         # Check if the robot is close to the final goal
         if self.pind > (len(self.path) - 2) and dist_goal < self.L_stop:
             # Stop the robot
@@ -65,9 +65,9 @@ class PurePursuitController:
         w: angular velocity
         """
         index, goal_point = self.lookahead_point()
-        ty_r = -math.sin(self.robot.x[2]) * (
-            goal_point[0] - self.robot.x[0]
-        ) + math.cos(self.robot.x[2]) * (goal_point[1] - self.robot.x[1])
+        ty_r = -math.sin(self.robot.pose[2]) * (
+            goal_point[0] - self.robot.pose[0]
+        ) + math.cos(self.robot.pose[2]) * (goal_point[1] - self.robot.pose[1])
         self.kappa = 2 * ty_r / (self.Lt**2)
         w = self.kappa * self.target_velocity()  # the angular velocity
         return w

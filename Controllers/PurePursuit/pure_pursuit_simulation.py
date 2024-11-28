@@ -1,8 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
-from utils import Robot, proportional_control
-from utils import velocity_mm_simpy, acceleration_mm_simpy
+from utils import Differential_drive_robot, proportional_control
 from scipy.ndimage import rotate
 
 from utils import RobotStates
@@ -75,14 +74,10 @@ turtlebot = AnnotationBbox(turtlebot_box, (0, 0), frameon=False)
 # Complete the functions where you find `...`
 
 
-eval_gux, _, _ = velocity_mm_simpy()
-eval_fva = acceleration_mm_simpy()
-
-
 def run_simulation(
     initial_state, target_vel, controller_dt, Lt, kp=0.5, sim_step=0.1, sim_length=120
 ):
-    turtlebot = Robot(dim_x=3, dim_u=2, eval_gux=eval_gux, eval_fva=eval_fva)
+    turtlebot = Differential_drive_robot(initial_state)  # create the robot object
     turtlebot.x = initial_state  # set the initial state
     turtlebot.u = np.array([[0.0], [0.0]])  # set the initial input
 
@@ -107,19 +102,8 @@ def run_simulation(
             a = proportional_control(controller.target_velocity(), turtlebot.v, kp=kp)
             w = controller.angular_velocity()
         # check any of the states is NaN or Inf
-        if np.any(np.isnan(turtlebot.x)) or np.any(np.isinf(turtlebot.x)):
-            print("Error: NaN or Inf detected in the state")
-            print("State:", turtlebot.x)
-            print("Control:", a, w)
-            print("Time:", time)
-            print("Index:", i)
-            print("Controller index:", controller.pind)
-            print("Controller lookahead:", controller.lookahead_point())
-            print("step number:", i)
-            print("steps length:", steps)
-            raise ValueError("Error: NaN or Inf detected in the state")
         # Update the robot state
-        turtlebot.update_state(a, w, sim_step)
+        turtlebot.update_state([a, w], sim_step)
         states.append(time, controller.pind, turtlebot, a)
     return states
 
@@ -163,7 +147,6 @@ def simulation_step(n, p_pur_states):
 
     turtlebot.xyann = (p_pur_states.x[n], p_pur_states.y[n])
     turtlebot.set_animated(True)
-    # turtlebot_box.angle = np.degrees(p_pur_states.yaw[n])
     turtlebot_box.set_data(
         normalize_image(
             rotate(robot_image, np.degrees(p_pur_states.yaw[n]), reshape=True)
