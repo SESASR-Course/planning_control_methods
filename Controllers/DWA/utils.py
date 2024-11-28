@@ -53,16 +53,19 @@ class Differential_drive_robot():
 
         return self.pose
 
-def obstacle_sensor(goal_pose, robot_pose, obstacles):
-    """""
-    Sampling z for obstacle range measurements
-    """""
-    if robot_pose is list:
-        robot_pose = np.array(robot_pose)
-
-    r_ = np.linalg.norm(robot_pose[0:2] - obstacles) + np.random.normal(0.0, 0.01, robot_pose.shape[0])
+def calc_nearest_obs(robot_pose, obstacles, obstacle_max_dist=3):
+    """
+    Filter obstacles: find the ones in the local map considered for obstacle avoidance.
+    """
+    nearest_obs = []
     
-    return np.squeeze(r_, axis=-1)
+    for obs in obstacles:
+        temp_dist_to_obs = np.linalg.norm(robot_pose[0:2]-obs)
+
+        if temp_dist_to_obs < obstacle_max_dist :
+            nearest_obs.append(obs)
+
+    return np.array(nearest_obs)
 
 def residual(a, b, **kwargs):
     """

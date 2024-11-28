@@ -1,13 +1,14 @@
 import numpy as np
 import math
-from plot_utils import plot_obstacles, plot_trajectories
+from plot_utils import plot_obstacles, plot_trajectories, plot_velocities
+from utils import calc_nearest_obs
 from dwa import DWA
 import matplotlib.pyplot as plt
 
 def main():
 
     init_pose = np.array([1.0, 2.0, 0.0]) # initial x, y, theta of the robot
-    goal_pose = np.array([5.75, 7.0]) # Goal [x,y] coordinate
+    goal_pose = np.array([2, 8.0]) # Goal [x,y] coordinate
     obstacles = np.array([[6, 8], [2, 5], 
                           [8.5, 5], [3, 3], 
                           [5,6], [4.5, 1.5],
@@ -21,23 +22,25 @@ def main():
     init_pose_legend = ax.scatter(init_pose[0], init_pose[1], marker="s", c="g", s=60, label="init pose")
 
     controller = DWA(
-        dt = 0.1,
-        sim_time = 2.0,
-        v_samples = 10,
-        w_samples = 20,
-        goal_dist_tol = 0.3,
+        dt = 0.1, # prediction dt
+        sim_time = 2.0, # # define trajectory generation time
+        time_granularity = 0.1, # define trajectory generation step
+        v_samples = 10, # num of linear velocity samples
+        w_samples = 20, # num of angular velocity samples
+        goal_dist_tol = 0.2, # tolerance to consider the goal reached
         weight_angle = 0.06,
         weight_vel = 0.2,
         weight_obs = 0.04,
-        obstacles_map = obstacles,
+        obstacles_fn = calc_nearest_obs, # compute near obstacles position
+        obstacles_map = obstacles, # if obstacles are known or a gridmap is available
         init_pose = init_pose,
-        max_linear_acc = 0.8,
+        max_linear_acc = 0.5,
         max_ang_acc = math.pi,
-        max_lin_vel = 1.2, # m/s
+        max_lin_vel = 0.5, # m/s
         min_lin_vel = 0.0, # m/s
-        max_ang_vel = 3.0, # rad/s 
-        min_ang_vel = -3.0, # rad/s 
-        size = 0.3, # m
+        max_ang_vel = 2.82, # rad/s 
+        min_ang_vel = -2.82, # rad/s 
+        size = 0.2, # m
     )
 
     done, robot_poses = controller.go_to_pose(goal_pose)
@@ -46,6 +49,8 @@ def main():
     ax.set_title("Nav to goal")
     ax.legend(handles=[goal_legend, init_pose_legend, obst_legend, path_legend])
     plt.show()
+
+    plot_velocities(robot_poses[:, 3:])
 
 if __name__ == "__main__":
     main()

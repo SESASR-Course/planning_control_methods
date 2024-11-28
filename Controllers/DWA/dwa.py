@@ -7,22 +7,24 @@ class DWA():
     def __init__(self,
                  dt = 0.1,
                  sim_time = 2.0,
+                 time_granularity = 0.1,
                  v_samples = 20,
                  w_samples = 20,
                  goal_dist_tol = 0.3,
                  weight_angle = 0.04,
                  weight_vel = 0.2,
                  weight_obs = 0.1,
+                 obstacles_fn = None,
                  obstacles_map = None, # A list of obstacles poses in the map # TO DO: accept a gridmap and use local map
                  **kwargs
                  ):
 
+        # define robot kinematics model and simulation parameters
         self.dt = dt
-        self.sim_step = round(sim_time / self.dt)
+        self.sim_step = math.ceil(sim_time / time_granularity)
         self.robot = Differential_drive_robot(**kwargs)
-        self.obstacles = obstacles_map 
-        self.goal_dist_tol = goal_dist_tol
 
+        # define number of velocity samples to simulate
         self.v_samples = v_samples
         self.w_samples = w_samples
 
@@ -31,14 +33,24 @@ class DWA():
         self.weight_vel = weight_vel
         self.weight_obs = weight_obs
 
+        # function to detect near obstacles, can be lidar-based on map-based
+        self.detect_obstacles = obstacles_fn
+        self.obstacle_map = obstacles_map
+
+        # tolerances
+        self.goal_dist_tol = goal_dist_tol
         self.obstacle_max_dist = 3 # like a local costmap size
+        self.obst_tolerance = 0.75
+
+        # max number of steps to reach goal and feedback rate
         self.max_num_steps = 300
         self.feedback_rate = 50
-        self.obst_tolerance = 0.75
 
     def go_to_pose(self, goal_pose):
         """
         Assign a target goal to the DWA controller.
+        Compute commands until goal is reached.
+        Provide intermediate feedback on the navigation task.
         """
         if goal_pose is list:
             goal_pose = np.array(goal_pose)
@@ -60,9 +72,10 @@ class DWA():
 
             # 2. Get new observations for obstacles is needed
             # no lidar used here
+            obstacles = self.detect_obstacles(self.robot.pose, self.obstacle_map, self.obstacle_max_dist)
 
             # 3. Compute command for the robot with DWA controller
-            u = self.compute_cmd(goal_pose, self.robot.pose, self.obstacles)
+            u = self.compute_cmd(goal_pose, self.robot.pose, obstacles)
 
             # 4. Send the command / or update the robot pose
             pose = self.robot.update_state(u, self.dt)
@@ -81,6 +94,10 @@ class DWA():
         return success, self.robot.trajectory
     
     def compute_cmd(self, goal_pose, robot_state, obstacles):
+        """
+        Compute the next velocity command u=(v,w) according to the DWA algorithm.
+        The velocity leading to the highest scored trajectory is selected.
+        """
         # create path
         paths, velocities = self.get_trajectories(robot_state)
 
@@ -90,6 +107,13 @@ class DWA():
         return u
 
     def get_trajectories(self, robot_pose): 
+        """
+        Get all the reachable velocities inside the dynamic window
+        Simulate all trajectory with velocity values u=(v,w)
+        Return: 
+        - simulated paths : np.ndarray,  shape: (n_paths, sim_step, state_dim)
+        - velocities : np.ndarray, shape (n_paths, 2)
+        """
         # calculate reachable range of velocity and angular velocity in the dynamic window
         min_lin_vel, max_lin_vel, min_ang_vel, max_ang_vel = self.compute_dynamic_window(self.robot.vel)
         
@@ -243,6 +267,9 @@ class DWA():
         return score_obstacle
 
     def calc_nearest_obs(self, robot_pose, obstacles):
+        """
+        Filter obstacles: find the ones in the local map considered for obstacle avoidance.
+        """
         nearest_obs = []
 
         for obs in obstacles:

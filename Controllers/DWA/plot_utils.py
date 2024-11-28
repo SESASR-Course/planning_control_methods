@@ -18,3 +18,21 @@ def plot_trajectories(paths, ax, best_path_idx=22, N=5):
     (best_path_legend,) = ax.plot(paths[best_path_idx, :, 0], paths[best_path_idx, :, 1], "r--", linewidth=2, label="best path")
     
     return best_path_legend
+
+def plot_velocities(velocities):
+    t = np.arange(velocities.shape[0])
+    fig, axs = plt.subplots(2, 1, layout='constrained')
+    axs[0].plot(t, velocities[:, 0]) # plot the linear velocities
+    axs[0].set_xlabel('Time (s)')
+    axs[0].set_ylabel('v [m/s]')
+    axs[0].set_title("Linear velocity")
+    axs[0].grid(True)
+    axs[0].legend(['v'])
+
+    axs[1].plot(t, velocities[:, 1]) # plot the angular velocities
+    axs[1].set_ylabel('w [rad/s]')
+    axs[1].set_xlabel('Time (s)')
+    axs[1].set_title("Angular velocity")
+    axs[1].grid(True)
+    axs[1].legend(['w'])
+    plt.show()
