@@ -10,6 +10,11 @@ class Planner2D:
 
     def __init__(self, grid_map, movements_class: utils.Movements, plot_enabled=False):
         self.grid_map = grid_map
+
+        # Define the movements class to use in the planner
+        # 8-connectivity movements
+        # 4-connectivity movements
+
         self.movements_class = movements_class
         self.frontier = (
             None  # PriorityQueue() # Queue() depending on the subclass implementation
@@ -17,12 +22,8 @@ class Planner2D:
         self.came_from = {}
         self.plot_enabled = plot_enabled
 
-        # Define the movements class to use in the planner
-        # 8-connectivity movements
-        # 4-connectivity movements
-
     def plan(self, start, goal, ax=None, fig=None):
-        """Method to implement the Dijkstra algorithm
+        """Run a search-based planning algorithm on a graph
 
         Args:
           start: tuple, start position
@@ -58,6 +59,7 @@ class Planner2D:
 
             return scatter
 
+        # Define starting node and goal node
         start_node = Node(start)
         goal_node = Node(goal)
 
@@ -71,6 +73,7 @@ class Planner2D:
             self.plot_node(start_node, "green", ax)
             self.plot_node(goal_node, "red", ax)
 
+        # initialize frontier queue and came_from dict
         self.initialize_structures(start_node, goal_node)
         frames = []
 
@@ -82,25 +85,22 @@ class Planner2D:
                 break
 
             plot_to_update = False
-            for (
-                new_position
-            ) in (
-                self.movements_class.movements
-            ):  # Explore the graph by visiting the neighbors
+            
+            # Explore the graph by visiting the neighbors
+            for new_position in self.movements_class.movements:  
                 node_position = new_position + current_node.position
 
                 # Check if the new position is valid
                 # (inside the map and not an obstacle)
                 if not self.check_valid_position(node_position):
                     continue
+                
+                # Create a new node with the current node as parent
+                new_node = Node(node_position) 
 
-                new_node = Node(
-                    node_position
-                )  # Create a new node with the current node as parent
-
-                self.node_insertion(
-                    new_node, current_node, goal_node
-                )  # Insert the new node in the frontier
+                # Insert the new node in the frontier
+                self.node_insertion(new_node, current_node, goal_node)
+                  
                 # if at least one node was inserted in the frontier update the plot
                 plot_to_update = True
             if plot_to_update and self.plot_enabled:
@@ -151,10 +151,6 @@ class Planner2D:
         """Method to check if a position is valid"""
         return self.check_on_map(position) and not self.check_obstacle(position)
 
-    def plot_grid_map(self):
-        """Method to plot the grid map"""
-        utils.plot_gridmap(self.grid_map, "Grid Map")
-
     def cost_g(self, current, neighbor):
         """Method to compute the cost from the start node to the current node"""
         raise NotImplementedError("This method should be implemented in the subclass")
@@ -162,6 +158,10 @@ class Planner2D:
     def cost_h(self, current, goal):
         """Method to compute the heuristic cost from the current node to the end node"""
         raise NotImplementedError("This method should be implemented in the subclass")
+
+    def plot_grid_map(self):
+        """Method to plot the grid map"""
+        utils.plot_gridmap(self.grid_map, "Grid Map")
 
     def plot_node(self, node, color, ax, radius=0.3):
         """Method to plot a node in the grid map with a cross and color based on cost"""

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 def main():
 
     init_pose = np.array([1.0, 2.0, 0.0]) # initial x, y, theta of the robot
-    goal_pose = np.array([2, 8.0]) # Goal [x,y] coordinate
+    goal_pose = np.array([5, 7.0]) # Goal [x,y] coordinate
     obstacles = np.array([[6, 8], [2, 5], 
                           [8.5, 5], [3, 3], 
                           [5,6], [4.5, 1.5],

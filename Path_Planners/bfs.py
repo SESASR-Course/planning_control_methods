@@ -18,13 +18,3 @@ class BFS(Planner2D):
         if new_node not in self.came_from:
             self.frontier.put(new_node)
             self.came_from[new_node] = current
-
-    def cost_g(self, current, neighbor):
-        """Method to compute the cost from the start node to the current node"""
-        return current.g + self.movements_class.cost(
-            current.position, neighbor.position
-        )
-
-    def cost_h(self, current, goal):
-        """Method to compute the heuristic cost from the current node to the end node"""
-        return 0
