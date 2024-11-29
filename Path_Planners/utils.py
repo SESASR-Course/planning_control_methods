@@ -5,6 +5,7 @@ from PIL import Image
 import skimage
 from typing import TypeVar
 
+
 class Movements:
     """Base class to implement the movements"""
 
@@ -44,7 +45,7 @@ class Movements8Connectivity(Movements):
                 (1.0, -1.0),
             ]
         )
-    
+
     def heuristic_cost(self, current_pos: np.ndarray, new_pos: np.ndarray) -> float:
         """Method to get the heuristic cost of the movement"""
         return np.linalg.norm(new_pos - current_pos, np.inf)
@@ -93,7 +94,8 @@ class Node:
 
     def __hash__(self):  # required for instances to be usable as keys in hash tables
         return hash(tuple(self.position))
-    
+
+
 def get_map(map_path, xy_reso, plot_map=False):
     """
     Load the image of the 2D map and convert into numpy ndarray with xy resolution
@@ -153,5 +155,4 @@ def plot_map(map, title, ax):
 
     ax.set_xlim(0, map.shape[0])
     ax.set_ylim(0, map.shape[1])
-    # ax.axis("equal")
     ax.set_title(title, fontsize=14)
