@@ -194,6 +194,15 @@ def world_to_map(world_pos, resolution, origin):
     return map_pos
 
 
+def map_to_world(map_pos, resolution, origin):
+
+    world_pos = np.zeros(2)
+    world_pos[0] = map_pos[0] * resolution + origin[0]
+    world_pos[1] = map_pos[1] * resolution + origin[1]
+
+    return world_pos
+
+
 def plot_gridmap(map, title, ax):
     cmap = colors.ListedColormap(["White", "Black"])
     ax.pcolor(map[::-1], cmap=cmap)
