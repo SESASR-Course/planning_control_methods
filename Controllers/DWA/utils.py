@@ -11,7 +11,7 @@ class Differential_drive_robot():
                 min_lin_vel = 0.0, # m/s
                 max_ang_vel = 3.0, # rad/s 
                 min_ang_vel = -3.0, # rad/s 
-                size = 0.3, # radius for circular robot
+                radius = 0.3, # radius for circular robot
                 ):
         
         #initialization
@@ -27,7 +27,7 @@ class Differential_drive_robot():
         self.min_ang_vel = min_ang_vel
 
         # size
-        self.size = size # circular shape
+        self.radius = radius # circular shape
 
         # trajectory initialization
         self.trajectory = np.array([init_pose[0], init_pose[1], init_pose[2], 0.0, 0.0]).reshape(1, -1)
@@ -67,23 +67,6 @@ def calc_nearest_obs(robot_pose, obstacles, obstacle_max_dist=3):
 
     return np.array(nearest_obs)
 
-def residual(a, b, **kwargs):
-    """
-    Compute the residual between expected and sensor measurements, normalizing angles between [-pi, pi)
-    If passed, angle_idx should indicate the positional index of the angle in the measurement arrays a and b
-
-    Returns:
-        y [np.array] : the residual between the two states
-    """
-    y = a - b
-
-    if "angle_idx" in kwargs:
-        angle_idx = kwargs["angle_idx"]
-        theta = y[angle_idx]
-        y[angle_idx] = normalize_angle(theta)
-        
-    return y
-
 def normalize_angle(theta):
     """
     Normalize angles between [-pi, pi)
@@ -105,12 +88,6 @@ def normalize(arr: np.ndarray):
         return np.zeros_like(arr)
     else:
         return (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
-
-def normalize_on_axis(arr: np.ndarray, ax: int):
-    """ normalize array of values on the specified axis"""
-    axis_sums = arr.sum(axis=ax)
-    new_arr = arr / axis_sums[:, np.newaxis]
-    return new_arr
 
 def sigmoid(x: np.ndarray):
   """ compute sigmoid smoothing activation of a given array of values"""

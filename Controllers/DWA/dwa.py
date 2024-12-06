@@ -1,6 +1,5 @@
 import numpy as np
-import math
-from utils import Differential_drive_robot, residual, normalize_angle, normalize, sigmoid
+from utils import Differential_drive_robot, normalize_angle, normalize, calc_nearest_obs
 
 # DWA
 class DWA():
@@ -8,23 +7,24 @@ class DWA():
                  dt = 0.1,
                  sim_time = 2.0,
                  time_granularity = 0.1,
-                 v_samples = 20,
+                 v_samples = 10,
                  w_samples = 20,
                  goal_dist_tol = 0.3,
+                 collision_tol = 0.3,
                  weight_angle = 0.04,
                  weight_vel = 0.2,
                  weight_obs = 0.1,
-                 obstacles_fn = None,
                  obstacles_map = None, # A list of obstacles poses in the map # TO DO: accept a gridmap and use local map
                  **kwargs
                  ):
 
-        # define robot kinematics model and simulation parameters
         self.dt = dt
-        self.sim_step = math.ceil(sim_time / time_granularity)
+        self.sim_step = round(sim_time / time_granularity)
         self.robot = Differential_drive_robot(**kwargs)
+        self.obstacles = obstacles_map 
+        self.goal_dist_tol = goal_dist_tol
+        self.collision_tol = collision_tol
 
-        # define number of velocity samples to simulate
         self.v_samples = v_samples
         self.w_samples = w_samples
 
@@ -33,18 +33,10 @@ class DWA():
         self.weight_vel = weight_vel
         self.weight_obs = weight_obs
 
-        # function to detect near obstacles, can be lidar-based on map-based
-        self.detect_obstacles = obstacles_fn
-        self.obstacle_map = obstacles_map
-
-        # tolerances
-        self.goal_dist_tol = goal_dist_tol
         self.obstacle_max_dist = 3 # like a local costmap size
-        self.obst_tolerance = 0.75
-
-        # max number of steps to reach goal and feedback rate
         self.max_num_steps = 300
         self.feedback_rate = 50
+        self.obst_tolerance = 0.5
 
     def go_to_pose(self, goal_pose):
         """
@@ -72,12 +64,11 @@ class DWA():
 
             # 2. Get new observations for obstacles is needed
             # no lidar used here
-            obstacles = self.detect_obstacles(self.robot.pose, self.obstacle_map, self.obstacle_max_dist)
 
             # 3. Compute command for the robot with DWA controller
-            u = self.compute_cmd(goal_pose, self.robot.pose, obstacles)
+            u = self.compute_cmd(goal_pose, self.robot.pose, self.obstacles)
 
-            # 4. Send the command / or update the robot pose
+            # 4. Send the command or update the robot pose
             pose = self.robot.update_state(u, self.dt)
             
             # 5. Provide intermediate task feedback
@@ -102,7 +93,7 @@ class DWA():
         paths, velocities = self.get_trajectories(robot_state)
 
         # evaluate path
-        opt_idx = self.evaluate_path(paths, velocities, goal_pose, robot_state, obstacles)
+        opt_idx = self.evaluate_paths(paths, velocities, goal_pose, robot_state, obstacles)
         u = velocities[opt_idx]
         return u
 
@@ -125,32 +116,26 @@ class DWA():
         sim_paths = np.zeros((n_paths, self.sim_step, robot_pose.shape[0]))
         velocities = np.zeros((n_paths, 2))
 
-        # evaluate all velocities and angular velocities combinations
-        i = 0
-        path = np.zeros((self.sim_step, robot_pose.shape[0]))
-        for w in w_values:
-            for v in v_values:
-                u = np.array([v,w])
-                velocities[i] = u.copy()
-                path = self.simulate_path(robot_pose, u)
-                sim_paths[i] = path
-                i += 1
+        # evaluate all velocities and angular velocities combinations    
+        vv, ww = np.meshgrid(v_values, w_values)
+        velocities = np.dstack([vv,ww]).reshape(n_paths, 2)
+        sim_paths = self.simulate_paths(n_paths, robot_pose, velocities)
 
         return sim_paths, velocities
     
-    def simulate_path(self, pose, u):
+    def simulate_paths(self, n_paths, pose, u):
         """
         Simulate trajectory at constant velocity u=(v,w)
         """
-        sim_trajectory = np.zeros((self.sim_step, 3))
-        sim_trajectory[0] = pose.copy()
-    
-        for i in range(1, self.sim_step):
-            sim_trajectory[i, 0] = sim_trajectory[i-1, 0] + u[0] * np.cos(sim_trajectory[i-1, 2]) * self.dt
-            sim_trajectory[i, 1] = sim_trajectory[i-1, 1] + u[0] * np.sin(sim_trajectory[i-1, 2]) * self.dt
-            sim_trajectory[i, 2] = sim_trajectory[i-1, 2] + u[1] * self.dt
+        sim_paths = np.zeros((n_paths, self.sim_step, pose.shape[0]))
+        sim_paths[:, 0] = pose.copy()
 
-        return sim_trajectory
+        for i in range(1, self.sim_step):
+            sim_paths[:, i, 0] = sim_paths[:, i - 1, 0] + u[:, 0] * np.cos(sim_paths[:, i - 1, 2]) * self.dt
+            sim_paths[:, i, 1] = sim_paths[:, i - 1, 1] + u[:, 0] * np.sin(sim_paths[:, i - 1, 2]) * self.dt
+            sim_paths[:, i, 2] = sim_paths[:, i - 1, 2] + u[:, 1] * self.dt
+
+        return sim_paths
 
     def compute_dynamic_window(self, robot_vel): 
         """
@@ -179,106 +164,79 @@ class DWA():
         return min_vel, max_vel, min_ang_vel, max_ang_vel
 
 
-    def evaluate_path(self, paths, velocities, goal_pose, robot_pose, obstacles):
+    def evaluate_paths(self, paths, velocities, goal_pose, robot_pose, obstacles):
         """
         Evaluate the simulated paths using the objective function.
         J = w_h * heading + w_v * vel + w_o * obst_dist
         """
         # detect nearest obstacle
-        nearest_obs = self.calc_nearest_obs(robot_pose, obstacles)
+        nearest_obs = calc_nearest_obs(robot_pose, obstacles)
 
-        score_heading_angles = np.zeros(paths.shape[0])
-        score_heading_vel = np.zeros(paths.shape[0])
-        score_obstacles = np.zeros(paths.shape[0])
-
-        # evaluate all pathes
-        for i, path in enumerate(paths):
-            # (1) heading_angle
-            score_heading_angles[i] = self.score_heading_angle(path, goal_pose)
-            # (2) heading_vel
-            score_heading_vel[i] = self.score_heading_vel(velocities[i], path, goal_pose)
-            # (3) obstacle
-            score_obstacles[i] = self.score_obstacle(path, nearest_obs)
+        # Compute the scores for the generated path
+        # (1) heading_angle and goal distance
+        score_heading_angles = self.score_heading_angle(paths, goal_pose)
+        # (2) velocity
+        score_vel = self.score_vel(velocities, paths, goal_pose)
+        # (3) obstacles
+        score_obstacles = self.score_obstacles(paths, nearest_obs)
 
         # normalization
         score_heading_angles = normalize(score_heading_angles)
-        score_heading_vel = normalize(score_heading_vel)
+        score_vel = normalize(score_vel)
         score_obstacles = normalize(score_obstacles)
 
-        score = 0.0
-
-        for k in range(paths.shape[0]):
-            temp_score = 0.0
-            temp_score = self.weight_angle * score_heading_angles[k] + \
-                         self.weight_vel * score_heading_vel[k] + \
-                         self.weight_obs * score_obstacles[k]
-  
-            if temp_score > score:
-                opt_idx = k
-                score = temp_score
+        opt_idx = np.argmax(np.sum(
+            np.array([score_heading_angles, score_vel, score_obstacles])
+            * np.array([[self.weight_angle, self.weight_vel, self.weight_obs]]).T,
+            axis=0,
+        ))
 
         try:
             return opt_idx
         except:
-            ret = print("Cannot calculate optimal path!")
+            raise Exception("Not possible to find an optimal path")
 
     def score_heading_angle(self, path, goal_pose):
 
-        last_x = path[-1, 0]
-        last_y = path[-1, 1]
-        last_th = path[-1, 2]
+        last_x = path[:, -1, 0]
+        last_y = path[:, -1, 1]
+        last_th = path[:, -1, 2]
 
         # calculate angle
-        angle_to_goal = math.atan2(goal_pose[1]-last_y, goal_pose[0]-last_x)
+        angle_to_goal = np.arctan2(goal_pose[1] - last_y, goal_pose[0] - last_x)
 
         # calculate score
         score_angle = angle_to_goal - last_th
-        score_angle = abs(normalize_angle(score_angle))
-        score_angle = math.pi - score_angle
+        score_angle = np.fabs(normalize_angle(score_angle))
+        score_angle = np.pi - score_angle
 
         return score_angle
 
-    def score_heading_vel(self, u, path, goal_pose):
+    def score_vel(self, u, path, goal_pose):
 
-        vel = u[0]
-        dist_to_goal = np.linalg.norm(path[-1, 0:2] - goal_pose)
+        vel = u[:,0]
+        dist_to_goal = np.linalg.norm(path[:, -1, 0:2] - goal_pose, axis=-1)
+        score = vel + np.exp(-dist_to_goal / self.goal_dist_tol)
+        return score
+        # return vel
 
-        return vel + np.exp(-dist_to_goal / self.goal_dist_tol)
-
-    def score_obstacle(self, path, nearest_obs):
+    def score_obstacles(self, path, obstacles):
         # obstacle avoidance
-        score_obstacle = 2.0
-        temp_dist_to_obs = 0.0
-
-        for i in range(self.sim_step):
-            for obs in nearest_obs: 
-                temp_dis_to_obs = np.linalg.norm(path[i, 0:2] - obs)
-
-                if temp_dis_to_obs < score_obstacle:
-                    score_obstacle = temp_dist_to_obs # the nearest obstacle
-
-                # collision with obstacle
-                if temp_dis_to_obs < self.robot.size + self.obst_tolerance: # safety margin distance
-                    score_obstacle = -100
-                    break
-            else:
-                continue
-            break
-        return score_obstacle
-
-    def calc_nearest_obs(self, robot_pose, obstacles):
-        """
-        Filter obstacles: find the ones in the local map considered for obstacle avoidance.
-        """
-        nearest_obs = []
+        score_obstacle = 2.0*np.ones((path.shape[0]))
 
         for obs in obstacles:
-            temp_dist_to_obs = np.linalg.norm(robot_pose[0:2]-obs)
+            dx = path[:, :, 0] - obs[0]
+            dy = path[:, :, 1] - obs[1]
+            dist = np.hypot(dx, dy)
 
-            if temp_dist_to_obs < self.obstacle_max_dist :
-                nearest_obs.append(obs)
+            min_dist = np.min(dist, axis=-1)
+            score_obstacle[min_dist < score_obstacle] = min_dist[min_dist < score_obstacle]
+        
+            # collision with obstacle
+            score_obstacle[score_obstacle < self.robot.radius + self.collision_tol] = -100
+               
+        return score_obstacle
 
-        return np.array(nearest_obs)
 
 
 
