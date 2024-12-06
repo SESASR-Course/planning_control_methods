@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import animation
-from utils import Differential_drive_robot, proportional_control
+from utils import DifferentialDriveRobot, proportional_control
 from scipy.ndimage import rotate
 
 from utils import RobotStates
@@ -77,7 +77,7 @@ turtlebot = AnnotationBbox(turtlebot_box, (0, 0), frameon=False)
 def run_simulation(
     initial_state, target_vel, controller_dt, Lt, kp=0.5, sim_step=0.1, sim_length=120
 ):
-    turtlebot = Differential_drive_robot(initial_state)  # create the robot object
+    turtlebot = DifferentialDriveRobot(initial_state)  # create the robot object
     turtlebot.x = initial_state  # set the initial state
     turtlebot.u = np.array([[0.0], [0.0]])  # set the initial input
 

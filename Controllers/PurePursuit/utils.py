@@ -106,7 +106,7 @@ def proportional_control(v_target, v_current, kp=3.0):
     return a
 
 
-class Differential_drive_robot:
+class DifferentialDriveRobot:
     def __init__(
         self,
         init_pose,

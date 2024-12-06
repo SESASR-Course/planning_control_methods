@@ -4,8 +4,8 @@ from queue import PriorityQueue
 
 class Dijkstra(BFS):
 
-    def __init__(self, grid_map, movements_class, plot_enabled=False):
-        super().__init__(grid_map, movements_class, plot_enabled)
+    def __init__(self, grid_map, movements_class):
+        super().__init__(grid_map, movements_class)
         self.frontier = PriorityQueue()
         self.costmap = self.generate_costmap()
         self.cost_so_far = {}
@@ -39,6 +39,7 @@ class Dijkstra(BFS):
 
     def cost_g(self, current, neighbor):
         """Method to compute the cost from the start node to the current node"""
-        return (self.movements_class.cost(current.position, neighbor.position)
-            * (self.costmap[tuple(neighbor.position.astype(int).tolist())] - self.costmap[tuple(current.position.astype(int).tolist())])
+        return self.movements_class.cost(current.position, neighbor.position) * (
+            self.costmap[tuple(neighbor.position.astype(int).tolist())]
+            - self.costmap[tuple(current.position.astype(int).tolist())]
         )

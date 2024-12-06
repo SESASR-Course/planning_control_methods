@@ -4,8 +4,8 @@ from queue import Queue
 
 class BFS(Planner2D):
 
-    def __init__(self, grid_map, movements_class, plot_enabled=False):
-        super().__init__(grid_map, movements_class, plot_enabled)
+    def __init__(self, grid_map, movements_class):
+        super().__init__(grid_map, movements_class)
         self.frontier = Queue()
 
     def initialize_structures(self, start_node, goal_node):
