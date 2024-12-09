@@ -174,6 +174,13 @@ class DifferentialDriveRobot:
         self.trajectory = np.concatenate([self.trajectory, traj_state], axis=0)
         return self.pose
 
+    def reset(self, init_pose):
+        self.pose = init_pose
+        self.vel = np.array([0.0, 0.0])
+        self.trajectory = np.array(
+            [init_pose[0], init_pose[1], init_pose[2], 0.0, 0.0], dtype=np.float64
+        ).reshape(1, -1)
+
     @property
     def v(self):
         return self.vel[0]

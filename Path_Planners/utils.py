@@ -24,16 +24,12 @@ def get_map(map_path, xy_reso, ax=None, plot_map=False):
         print("Map path is a string")
         map_path = Path(map_path)
 
-    print("Map path:", map_path)
-    print("map path type:", type(map_path))
     if map_path.suffix == ".yaml":
         npmap, metadata = get_map_data(map_path)
     elif map_path.suffix == ".png":
         img = Image.open(map_path)
         npmap = npmap = np.asarray(img, dtype=int)
         metadata = {}
-
-    print("Map size:", npmap.shape)
 
     if plot_map:
         if ax is None:
@@ -47,7 +43,6 @@ def get_map(map_path, xy_reso, ax=None, plot_map=False):
     grid_map_metadata["width"] = grid_map.shape[1]
     grid_map_metadata["height"] = grid_map.shape[0]
     grid_map_metadata["occupancy_gridmap"] = grid_map
-    print("Grid Map size:", grid_map.shape)
 
     return npmap, grid_map, metadata
 
@@ -101,6 +96,8 @@ def get_map_data(map_path: Union[Path, str]) -> Tuple[np.ndarray, Dict[str, any]
     metadata["image_path"] = map_dir.joinpath(metadata.pop("image"))
     assert metadata["image_path"].exists()
     im = imread(str(metadata["image_path"]), IMREAD_UNCHANGED)
+    # reflect the image to have the same orientation as the map
+    im = np.flipud(im)
     metadata["occupancy_gridmap"] = image_to_occupancy_gridmap(im, metadata)
     metadata["width"] = metadata["occupancy_gridmap"].shape[1]
     metadata["height"] = metadata["occupancy_gridmap"].shape[0]
@@ -117,6 +114,8 @@ def image_to_occupancy_gridmap(im: np.ndarray, metadata: Dict[str, any]) -> np.n
     :return: Occupancy gridmap
     """
     # Get map data
+    if "mode" not in metadata:
+        metadata["mode"] = "trinary"
     mode = metadata["mode"]
     negate = metadata["negate"]
     occupied_thresh = metadata["occupied_thresh"]
@@ -185,20 +184,21 @@ def compute_map_occ(map):
     return obst_poses, end_points
 
 
-def world_to_map(world_pos, resolution, origin):
+def world_to_map(world_pos, resolution, origin, map_shape):
 
     map_pos = np.zeros(2, dtype=int)
-    map_pos[0] = int((world_pos[0] - origin[0]) / resolution)
-    map_pos[1] = int((world_pos[1] - origin[1]) / resolution)
-
+    # map_pos[0] = map_shape[0] - int((world_pos[1] - origin[1]) / resolution)
+    # map_pos[1] = int((world_pos[0] - origin[0]) / resolution)
+    map_pos[0] = round((world_pos[1] - origin[1]) / resolution)
+    map_pos[1] = round((world_pos[0] - origin[0]) / resolution)
     return map_pos
 
 
-def map_to_world(map_pos, resolution, origin):
+def map_to_world(map_pos, resolution, origin, map_shape):
 
     world_pos = np.zeros(2)
-    world_pos[0] = map_pos[0] * resolution + origin[0]
-    world_pos[1] = map_pos[1] * resolution + origin[1]
+    world_pos[0] = map_pos[1] * resolution + origin[1]
+    world_pos[1] = map_pos[0] * resolution + origin[0]
 
     return world_pos
 
@@ -326,6 +326,9 @@ class Node:
         return self.f <= other.f
 
     def __repr__(self):  # return a string representation of the object
+        return tuple(self.position)
+
+    def __str__(self):  # return a string representation of the object
         return f"Node {self.position} with cost {self.f}"
 
     def __hash__(self):  # required for instances to be usable as keys in hash tables

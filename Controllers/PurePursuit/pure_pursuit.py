@@ -19,6 +19,7 @@ class PurePursuitController:
         self.pind = pind  # index of the path to track
         self.Lt = Lt  # look ahead distance
         self.L_stop = self.Lt  # distance to stop the robot
+        self._vt = vt  # desired velocity
         self.vt = vt  # target velocity
 
     def lookahead_point(self):

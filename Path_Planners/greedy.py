@@ -23,3 +23,7 @@ class Greedy(Planner2D):
     def cost_h(self, current, goal):
         """Method to compute the heuristic cost from the current node to the end node"""
         return self.movements_class.heuristic_cost(current.position, goal.position)
+
+    def reset(self):
+        super().reset()
+        self.frontier = PriorityQueue()

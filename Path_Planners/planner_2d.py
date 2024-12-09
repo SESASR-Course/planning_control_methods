@@ -28,6 +28,7 @@ class Planner2D:
         Returns:
           Path: list of tuples
         """
+        self.reset()
 
         # Define starting node and goal node
         start_node = Node(start)
@@ -73,6 +74,10 @@ class Planner2D:
             return path[::-1]
 
         raise ValueError("No path found")
+
+    def reset(self):
+        self.frontier = None
+        self.came_from = {}
 
     def node_insertion(self, new_node, current, goal):
         raise NotImplementedError("This method should be implemented in the subclass")

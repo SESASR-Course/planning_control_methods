@@ -18,14 +18,14 @@ class Dijkstra(BFS):
 
     def generate_costmap(self):
         """Method to generate the cost map"""
-        costmap = self.grid_map.copy()
+        costmap = self.grid_map.copy() + 1
         # add a gaussian near the obstacles to avoid them
         for i in range(costmap.shape[0]):
             for j in range(costmap.shape[1]):
-                if self.grid_map[i, j] == 1:
+                if self.grid_map[i, j] > 0:
                     costmap[i - 2 : i + 3, j - 2 : j + 3] += 10
                     costmap[i - 1 : i + 2, j - 1 : j + 2] += 20
-        costmap[self.grid_map == 1] = 255
+        costmap[self.grid_map > 0] = 255
         costmap[costmap > 255] = 255
         return costmap
 
@@ -41,5 +41,9 @@ class Dijkstra(BFS):
         """Method to compute the cost from the start node to the current node"""
         return self.movements_class.cost(current.position, neighbor.position) * (
             self.costmap[tuple(neighbor.position.astype(int).tolist())]
-            - self.costmap[tuple(current.position.astype(int).tolist())]
         )
+
+    def reset(self):
+        super().reset()
+        self.cost_so_far = {}
+        self.frontier = PriorityQueue()

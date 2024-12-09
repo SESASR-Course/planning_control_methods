@@ -14,3 +14,6 @@ class AStar(Dijkstra):
 
     def cost_h(self, current, goal):
         return self.movements_class.heuristic_cost(current.position, goal.position)
+
+    def reset(self):
+        return super().reset()

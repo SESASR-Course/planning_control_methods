@@ -18,3 +18,7 @@ class BFS(Planner2D):
         if new_node not in self.came_from:
             self.frontier.put(new_node)
             self.came_from[new_node] = current
+
+    def reset(self):
+        super().reset()
+        self.frontier = Queue()
