@@ -72,3 +72,16 @@ class PurePursuitController:
         self.kappa = 2 * ty_r / (self.Lt**2)
         w = self.kappa * self.target_velocity()  # the angular velocity
         return w
+
+    def reset(self, path, pose):
+        """
+        Reset the controller variables
+
+        Args:
+        path: path to track
+        pose: initial pose of the robot
+        """
+        self.path = path
+        self.pind = 0
+        self.robot.reset(pose)
+        self.vt = self._vt
