@@ -98,7 +98,7 @@ class Planner2D:
 
     def check_obstacle(self, position):
         """Method to check if a position is an obstacle"""
-        if self.grid_map[tuple(position.astype(int).tolist())] == 1:
+        if self.grid_map[tuple(position.astype(int).tolist())] > 0:
             return True
         return False
 
