@@ -22,8 +22,8 @@ class Planner2D:
         """Run a search-based planning algorithm on a graph
 
         Args:
-          start: tuple, start position
-          goal: tuple, goal position
+          start: np.array, start position
+          goal: np.array, goal position
 
         Returns:
           Path: list of tuples
@@ -76,13 +76,16 @@ class Planner2D:
         raise ValueError("No path found")
 
     def reset(self):
+        """Method to reset the structures of the planner"""
         self.frontier = None
         self.came_from = {}
 
     def node_insertion(self, new_node, current, goal):
+        """Method to insert a new node in the frontier"""
         raise NotImplementedError("This method should be implemented in the subclass")
 
     def initialize_structures(self, start_node, goal_node):
+        """Method to initialize the frontier and the came_from structures"""
         raise NotImplementedError("This method should be implemented in the subclass")
 
     def check_on_map(self, position):

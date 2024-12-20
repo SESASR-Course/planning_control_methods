@@ -47,17 +47,6 @@ def get_map(map_path, xy_reso, ax=None, plot_map=False):
     return npmap, grid_map, metadata
 
 
-def calc_grid_map_config(map_size, xyreso):
-    minx = 0
-    miny = 0
-    maxx = map_size[0]
-    maxy = map_size[1]
-    xw = int(round((maxx - minx) / xyreso))
-    yw = int(round((maxy - miny) / xyreso))
-
-    return xw, yw
-
-
 def orientation_around_z_axis(angle: float) -> np.ndarray:
     """
     Create a quaternion orientation around the Z axis
@@ -156,60 +145,57 @@ def image_to_occupancy_gridmap(im: np.ndarray, metadata: Dict[str, any]) -> np.n
     return map_data
 
 
-def compute_map_occ(map):
+def world_to_map(world_pos, resolution, origin):
+    """Convert world position to gridmap position
+    Args:
+        world_pos (np.ndarray): World position
+        resolution (float): Resolution of the rescaled gridmap
+        origin (np.ndarray): Origin of the gridmap
+    Returns:
+        np.ndarray: Gridmap position
     """
-    Compute occupancy state for each cell of the gridmap
-    Possible states:
-      - occupied = 1 (obstacle present)
-      - free = 0
-      - unknown = not defined (usually -1)
-    Returns two np arrays with poses of the obstacles in the map and all the map poses.
-    It supports the pre-computation of likelihood field over the entire map
-    """
-    n_o = np.count_nonzero(map)
-    obst_poses = np.zeros((n_o, 2), dtype=int)
-    end_points = np.zeros((map.shape[0] * map.shape[1], 2), dtype=int)
-
-    i = 0
-    j = 0
-    for x in range(map.shape[0]):
-        for y in range(map.shape[1]):
-            if map[x, y] == 1:
-                obst_poses[i, :] = x, y
-                i += 1
-
-            end_points[j, :] = x, y
-            j += 1
-
-    return obst_poses, end_points
-
-
-def world_to_map(world_pos, resolution, origin, map_shape):
 
     map_pos = np.zeros(2, dtype=int)
-    # map_pos[0] = map_shape[0] - int((world_pos[1] - origin[1]) / resolution)
-    # map_pos[1] = int((world_pos[0] - origin[0]) / resolution)
     map_pos[0] = round((world_pos[1] - origin[1]) / resolution)
     map_pos[1] = round((world_pos[0] - origin[0]) / resolution)
     return map_pos
 
 
-def map_to_world(map_pos, resolution, origin, map_shape):
+def map_to_world(map_pos, resolution, origin):
+    """Convert gridmap position to world position
+    Args:
+        map_pos (np.ndarray): Gridmap position
+        resolution (float): Resolution of the rescaled gridmap
+        origin (np.ndarray): Origin of the gridmap
+    Returns:
+        np.ndarray: World position
+    """
 
     world_pos = np.zeros(2)
-    world_pos[0] = map_pos[1] * resolution + origin[1]
-    world_pos[1] = map_pos[0] * resolution + origin[0]
-
+    world_pos[0] = map_pos[1] * resolution + origin[0]
+    world_pos[1] = map_pos[0] * resolution + origin[1]
     return world_pos
 
 
 def plot_gridmap(map, title, ax):
+    """Plot the gridmap with the given title
+    Args:
+        map (np.ndarray): Gridmap
+        title (str): Title of the plot
+        ax (matplotlib.axes.Axes): Axes to plot the gridmap
+    """
     cmap = colors.ListedColormap(["White", "Black"])
     ax.pcolor(map[::-1], cmap=cmap)
     plot_map(map, title, ax)
 
 
 def plot_costmap(costmap, title, ax):
+    """Plot the costmap with the given title
+    Args:
+        costmap (np.ndarray): Costmap
+        title (str): Title of the plot
+        ax (matplotlib.axes.Axes): Axes to plot the gridmap
+    """
     ax.pcolor(costmap[::-1], cmap="Blues")
     norm = colors.Normalize(vmin=0, vmax=np.max(costmap))
     sm = plt.cm.ScalarMappable(cmap="Blues", norm=norm)
@@ -219,6 +205,12 @@ def plot_costmap(costmap, title, ax):
 
 
 def plot_map(map, title, ax):
+    """Plot the map with the given title
+    Args:
+        map (np.ndarray): Map
+        title (str): Title of the plot
+        ax (matplotlib.axes.Axes): Axes to plot the map
+    """
     if map.shape[0] < 20:
         ax.set_xticks(
             ticks=np.array(range(map.shape[1])) + 0.5, labels=range(map.shape[1])
