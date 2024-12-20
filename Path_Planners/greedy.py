@@ -3,6 +3,17 @@ from queue import PriorityQueue
 
 
 class Greedy(Planner2D):
+    """Class to implement the Greedy algorithm
+
+    It is an extension of the Planner2D class with the addition
+    of the frontier attribute to store the nodes to be visited
+    See the Planner2D class for more information
+
+    Attributes:
+        frontier: A priority queue to store the nodes to be visited
+        came_from: A dictionary to store the path
+        movements_class: A class to store the movements
+    """
 
     def __init__(self, grid_map, movements_class):
         super().__init__(grid_map, movements_class)

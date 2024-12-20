@@ -12,12 +12,13 @@ from cv2 import imread, IMREAD_UNCHANGED
 from tf_transformations import quaternion_from_euler
 
 
-def get_map(map_path, xy_reso, ax=None, plot_map=False):
+def get_map(map_path, scaling_factor, ax=None, plot_map=False):
     """ "
     Load the image of the 2D map and convert into numpy ndarray with xy resolution
     Return:
       - full map: np array
       - gridmap resized: np array
+      - metadata: dict with the map information
     """
     # if the extension is .yaml, it is a map file
     if isinstance(map_path, str):
@@ -37,9 +38,12 @@ def get_map(map_path, xy_reso, ax=None, plot_map=False):
         plot_gridmap(npmap, "Full Map", ax)
 
     # reduce the resolution: from the original map to the grid map using max pooling
-    grid_map = skimage.measure.block_reduce(npmap, (xy_reso, xy_reso), np.max)
+    grid_map = skimage.measure.block_reduce(
+        npmap, (scaling_factor, scaling_factor), np.max
+    )
     grid_map_metadata = metadata.copy()
-    grid_map_metadata["resolution"] = xy_reso * metadata["resolution"]
+    if map_path.suffix == ".yaml":
+        grid_map_metadata["resolution"] = scaling_factor * metadata["resolution"]
     grid_map_metadata["width"] = grid_map.shape[1]
     grid_map_metadata["height"] = grid_map.shape[0]
     grid_map_metadata["occupancy_gridmap"] = grid_map

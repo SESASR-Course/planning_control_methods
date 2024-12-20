@@ -3,6 +3,19 @@ from queue import PriorityQueue
 
 
 class Dijkstra(BFS):
+    """Class to implement the Dijkstra algorithm
+
+    It is an extension of the BFS class with the addition
+    of the costmap attribute to store the cost of the path
+    See the BFS class for more information
+
+        Attributes:
+        frontier: A priority queue to store the nodes to be visited
+        came_from: A dictionary to store the path
+        costmap: A matrix express the cost of the map to be used in the algorithm
+        cost_so_far: A dictionary to store the cost of the path
+        movements_class: A class to store the movements
+    """
 
     def __init__(self, grid_map, movements_class):
         super().__init__(grid_map, movements_class)

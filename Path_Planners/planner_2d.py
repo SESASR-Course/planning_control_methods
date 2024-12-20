@@ -3,7 +3,22 @@ from utils import Node
 
 
 class Planner2D:
-    """Base class to implement a 2D planner"""
+    """Base class to implement a 2D planner
+
+    It is an abstract class to implement a 2D planner
+    The class has the basic methods to implement a search-based
+    planning algorithm  in a 2D grid map
+
+    Its main methods are:
+    - plan: to run the search-based algorithm
+    - reset: to reset the structures of the planner
+
+    Attributes:
+        grid_map: np.array, a 2D grid map
+        movements_class: A class to store the movements
+        frontier: A queue to store the nodes to be visited
+        came_from: A dictionary to store the path
+    """
 
     def __init__(self, grid_map, movements_class: utils.Movements):
         self.grid_map = grid_map
