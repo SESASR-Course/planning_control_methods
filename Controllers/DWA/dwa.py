@@ -180,11 +180,12 @@ class DWA():
         # (3) obstacles
         score_obstacles = self.score_obstacles(paths, nearest_obs)
 
-        # normalization
+        # Scores Normalization
         score_heading_angles = normalize(score_heading_angles)
         score_vel = normalize(score_vel)
         score_obstacles = normalize(score_obstacles)
 
+        # Compute the idx of the optimal path according to the overall score
         opt_idx = np.argmax(np.sum(
             np.array([score_heading_angles, score_vel, score_obstacles])
             * np.array([[self.weight_angle, self.weight_vel, self.weight_obs]]).T,
@@ -197,7 +198,9 @@ class DWA():
             raise Exception("Not possible to find an optimal path")
 
     def score_heading_angle(self, path, goal_pose):
-
+        """
+        Go towards the target objective: score trajectory according to the heading angle to the goal
+        """
         last_x = path[:, -1, 0]
         last_y = path[:, -1, 1]
         last_th = path[:, -1, 2]
@@ -213,15 +216,19 @@ class DWA():
         return score_angle
 
     def score_vel(self, u, path, goal_pose):
+        """
+        Maximum velocity objective: score trajectory according to the forward velocity. When the robot is near the goal, slow down.
+        """
 
-        vel = u[:,0]
+        vel = u[:,0] # linear velocity value is the score itself (to maximize)
         dist_to_goal = np.linalg.norm(path[:, -1, 0:2] - goal_pose, axis=-1)
         score = vel + np.exp(-dist_to_goal / self.goal_dist_tol)
         return score
-        # return vel
 
     def score_obstacles(self, path, obstacles):
-        # obstacle avoidance
+        """
+        Obstacle avoidance objective: score trajectory according to the distance to the nearest obstacle.
+        """
         score_obstacle = 2.0*np.ones((path.shape[0]))
 
         for obs in obstacles:
@@ -233,7 +240,7 @@ class DWA():
             score_obstacle[min_dist < score_obstacle] = min_dist[min_dist < score_obstacle]
         
             # collision with obstacle
-            score_obstacle[score_obstacle < self.robot.radius + self.collision_tol] = -100
+            score_obstacle[score_obstacle < self.robot.radius + self.collision_tol] = -100 # heavy penalty for collision
                
         return score_obstacle
 
