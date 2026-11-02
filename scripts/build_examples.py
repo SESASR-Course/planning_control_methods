@@ -182,7 +182,18 @@ def dwa_data(source):
     success, trajectory = controller.go_to_pose(goal)
     return {"start": start.tolist(), "goal": goal.tolist(), "obstacles": obstacles.tolist(),
             "success": bool(success), "trajectory": np.round(trajectory, 3).tolist(),
-            "candidates": np.round(candidates[:, ::3, :2], 3).tolist(), "chosen": chosen}
+            "candidates": np.round(candidates[:, :, :2], 3).tolist(), "chosen": chosen,
+            "config": {"dt": controller.dt, "timeGranularity": 0.1,
+                       "vSamples": controller.v_samples, "wSamples": controller.w_samples,
+                       "goalDistTol": controller.goal_dist_tol, "collisionTol": controller.collision_tol,
+                       "obstacleMaxDist": controller.obstacle_max_dist, "maxSteps": controller.max_num_steps,
+                       "maxLinearAcc": controller.robot.max_linear_acc,
+                       "maxAngAcc": controller.robot.max_ang_acc,
+                       "maxLinVel": controller.robot.max_lin_vel, "minLinVel": controller.robot.min_lin_vel,
+                       "maxAngVel": controller.robot.max_ang_vel, "minAngVel": controller.robot.min_ang_vel,
+                       "radius": controller.robot.radius},
+            "defaults": {"heading": controller.weight_angle, "velocity": controller.weight_vel,
+                         "obstacle": controller.weight_obs, "simTime": 2.0}}
 
 
 def pure_pursuit_data(source):
