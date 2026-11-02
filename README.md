@@ -1,24 +1,10 @@
 # Planning & Control Methods · interactive examples
 
-A static companion to the Python examples on [`main`](https://github.com/SESASR-Course/planning_control_methods/tree/main): grid search planners, Dynamic Window Approach (DWA), and Pure Pursuit. The site uses HTML, CSS, and browser JavaScript. A Python build step runs the implementations from `main` and exports data for browser plots and animations; no Python runtime or server is needed on GitHub Pages.
+A companion page to the Python examples on [`main`](https://github.com/SESASR-Course/planning_control_methods/tree/main): grid search planners, Dynamic Window Approach (DWA), and Pure Pursuit. The site uses HTML, CSS, and browser JavaScript. A Python build step runs the implementations from `main` and exports data for browser plots and animations; no Python runtime or server is needed on GitHub Pages.
 
 ## Pages
 
 - [Home](index.html)
-- [Grid Search Planners](grid-search.html): choose from the six distinct maps in `main/2D_maps`, place start and goal on the map, compare BFS, Dijkstra, Greedy, and A* with four/eight connectivity, and replay the cell expansion followed by the route over the planner cost map.
+- [Grid Search Planners](grid-search.html): choose from the maps in `main/2D_maps`, place start and goal on the map, compare BFS, Dijkstra, Greedy, and A* with four/eight connectivity, and replay the cell expansion followed by the route over the planner cost map.
 - [DWA](dwa.html): place start and goal, add or remove obstacles, adjust scoring weights, prediction horizon, and velocity sample counts, then replay the navigation run and inspect the sampled trajectories.
 - [Pure Pursuit](pure-pursuit.html): replay the controller simulation and inspect its lookahead target.
-
-## Build locally
-
-From a checkout of `gh-pages`, with a checkout of `main` at `../planning_control_methods-main`:
-
-```bash
-python -m pip install numpy
-python scripts/build_examples.py --source ../planning_control_methods-main --output data
-python -m http.server 8000
-```
-
-Open `http://localhost:8000`. The generated JSON in `data/` is committed as an initial preview. The workflow rebuilds it from the latest `main` on each push to either branch, then publishes the site with GitHub Pages Actions. In repository settings, set **Pages → Build and deployment → Source** to **GitHub Actions**.
-
-The build exports the Python baseline trajectories, map costs, obstacles, and DWA parameters. When a visitor moves a point or changes a control, browser JavaScript runs the corresponding search or DWA sampling and scoring equations locally. These controls do not require a Python server.
