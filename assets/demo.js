@@ -11,13 +11,20 @@
   function selectPoint(mode) {
     const state = kind === 'grid' ? gridState : dwaState;
     state.mode = mode;
-    for (const name of ['start', 'goal']) {
-      const button = document.getElementById(`set-${name}`);
+    const modes = kind === 'grid' ? ['start', 'goal'] : ['start', 'goal', 'add-obstacle', 'remove-obstacle'];
+    for (const name of modes) {
+      const id = name === 'start' || name === 'goal' ? `set-${name}` : name;
+      const button = document.getElementById(id);
       button.classList.toggle('active', name === mode);
       button.setAttribute('aria-pressed', String(name === mode));
     }
-    status(kind === 'grid' ? 'grid-status' : 'dwa-status',
-      `Click ${kind === 'grid' ? 'a free cell' : 'a clear location'} to move the ${mode}.`);
+    const instruction = kind === 'grid' ? `Click a free cell to move the ${mode}.` : {
+      start: 'Click a clear location to move the start.',
+      goal: 'Click a clear location to move the goal.',
+      'add-obstacle': 'Click a clear location to add an obstacle.',
+      'remove-obstacle': 'Click a red obstacle to remove it.'
+    }[mode];
+    status(kind === 'grid' ? 'grid-status' : 'dwa-status', instruction);
   }
   function gridGeometry(w, h, map) {
     const rows = map.grid.length, cols = map.grid[0].length;
@@ -57,21 +64,35 @@
     const rows = map.grid.length, cols = map.grid[0].length;
     const { cell, x0, y0, xy } = gridGeometry(w, h, map);
     const result = gridState.result;
-    const frame = Math.min(Number(progress.value), Math.max(0, result.path.length - 1));
+    const frame = Math.min(Number(progress.value), Number(progress.max));
+    const exploredVisible = Math.min(result.expanded.length, frame + 1);
+    const pathVisible = Math.max(0, Math.min(result.path.length, frame - result.expanded.length + 1));
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
       const value = map.costmap[r][c];
       const level = Math.max(0, Math.min(1, (value - 1) / 99));
-      ctx.fillStyle = map.grid[r][c] ? '#934a83' : `hsl(203 75% ${92 - 52 * level}%)`;
+      ctx.fillStyle = map.grid[r][c] ? '#4e5751' : `hsl(${80 + 72 * level} ${20 - 8 * level}% ${89 - 40 * level}%)`;
       ctx.fillRect(x0 + c * cell + .6, y0 + r * cell + .6, cell - 1.2, cell - 1.2);
     }
-    if (result.path.length) {
-      line(result.path.slice(0, frame + 1), xy, '#493015', Math.max(6, cell * .36));
-      line(result.path.slice(0, frame + 1), xy, colors.gold, Math.max(3, cell * .2));
-      dot(...xy(result.path[frame]), Math.max(5, cell * .25), '#103e49');
+    result.expanded.slice(0, exploredVisible).forEach(([row, col]) => {
+      ctx.fillStyle = '#d3ae8a';
+      ctx.fillRect(x0 + col * cell + 1.2, y0 + row * cell + 1.2, cell - 2.4, cell - 2.4);
+    });
+    if (exploredVisible && exploredVisible < result.expanded.length) {
+      const [row, col] = result.expanded[exploredVisible - 1];
+      ctx.strokeStyle = '#7b4f3e'; ctx.lineWidth = Math.max(2, cell * .1);
+      ctx.strokeRect(x0 + col * cell + 2, y0 + row * cell + 2, cell - 4, cell - 4);
     }
-    dot(...xy(gridState.start), Math.max(5, cell * .3), colors.mint);
-    diamond(...xy(gridState.goal), Math.max(6, cell * .34), '#ff9e72');
-    document.getElementById('explored').textContent = result.visited.length;
+    if (pathVisible) {
+      line(result.path.slice(0, pathVisible), xy, '#5a4136', Math.max(6, cell * .36));
+      line(result.path.slice(0, pathVisible), xy, '#b76e48', Math.max(3, cell * .2));
+      dot(...xy(result.path[pathVisible - 1]), Math.max(5, cell * .25), '#264d48');
+    }
+    dot(...xy(gridState.start), Math.max(5, cell * .3), '#4d7c66');
+    diamond(...xy(gridState.goal), Math.max(6, cell * .34), '#bc634d');
+    document.getElementById('explored').textContent = `${exploredVisible} / ${result.expanded.length}`;
+    document.getElementById('grid-phase').textContent = !result.path.length && frame >= result.expanded.length - 1
+      ? 'No route' : frame < result.expanded.length
+        ? 'Exploring cells' : pathVisible < result.path.length ? 'Drawing route' : 'Complete';
     document.getElementById('path-length').textContent = result.path.length ? `${result.distance.toFixed(2)} cells` : 'No path';
   }
   function world(w, h, bounds) {
@@ -98,44 +119,28 @@
     const end = Math.min(Number(progress.value), dwaState.trajectory.length - 1);
     const state = dwaState.trajectory[end];
     if (!candidateCache || candidateCache.frame !== end) {
-      candidateCache = { frame: end, sample: DwaModel.candidates(state, dwaState.goal, data.obstacles,
-        data.config, dwaState.weights, dwaState.simTime) };
+      candidateCache = { frame: end, sample: DwaModel.candidates(state, dwaState.goal, dwaState.obstacles,
+        dwaState.config, dwaState.weights, dwaState.simTime) };
     }
     const sample = candidateCache.sample;
     sample.paths.forEach((candidate, i) => {
       if (i !== sample.chosen) line(candidate, xy, '#80b4ff99', 1.4);
     });
-    data.obstacles.forEach(p => dot(...xy(p), 7, '#e17b83'));
+    dwaState.obstacles.forEach(p => dot(...xy(p), 8, '#e17b83'));
     const trace = dwaState.trajectory.slice(0, end + 1);
     line(trace, xy, colors.gold, 3);
     line(sample.paths[sample.chosen], xy, '#42f5a4', 3.2);
     dot(...xy(dwaState.start), 7, colors.mint);
     diamond(...xy(dwaState.goal), 10, '#ff9e72');
     drawRobot(state, xy, '#f8f8ef');
-    drawDwaInset(w, h, sample, state);
+    const limits = DwaModel.dynamicWindow(state, dwaState.config);
+    document.getElementById('v-window').textContent = `${limits.linear[0].toFixed(2)}–${limits.linear[1].toFixed(2)} m/s`;
+    document.getElementById('w-window').textContent = `${limits.angular[0].toFixed(2)}–${limits.angular[1].toFixed(2)} rad/s`;
+    document.getElementById('candidate-count').textContent = `${dwaState.config.vSamples} × ${dwaState.config.wSamples} = ${sample.paths.length}`;
+    document.getElementById('obstacle-count').textContent = dwaState.obstacles.length;
+    document.getElementById('step-value').textContent = end;
     document.getElementById('position').textContent = `${state[0].toFixed(1)}, ${state[1].toFixed(1)} m`;
     document.getElementById('speed').textContent = `${state[3].toFixed(2)} m/s`;
-  }
-  function drawDwaInset(w, h, sample, state) {
-    const width = Math.min(250, w * .42), height = Math.min(210, h * .47);
-    const left = w - width - 15, top = 15;
-    const farthest = Math.max(...sample.paths.map(path => {
-      const end = path[path.length - 1];
-      return Math.hypot(end[0] - state[0], end[1] - state[1]);
-    }));
-    const radius = Math.max(.16, farthest * 1.18);
-    const scale = Math.min((width - 28) / (2 * radius), (height - 50) / (2 * radius));
-    const local = point => [left + width / 2 + (point[0] - state[0]) * scale,
-      top + height / 2 - (point[1] - state[1]) * scale];
-    ctx.fillStyle = '#0a2334f2'; ctx.fillRect(left, top, width, height);
-    ctx.strokeStyle = '#66869b'; ctx.lineWidth = 1; ctx.strokeRect(left + .5, top + .5, width - 1, height - 1);
-    ctx.save(); ctx.beginPath(); ctx.rect(left + 5, top + 27, width - 10, height - 32); ctx.clip();
-    sample.paths.forEach((path, i) => { if (i !== sample.chosen) line(path, local, '#80b4ffaa', 1.2); });
-    line(sample.paths[sample.chosen], local, '#42f5a4', 3);
-    dot(...local(state), 5, '#fff');
-    ctx.restore();
-    ctx.font = '600 12px DM Sans, sans-serif'; ctx.fillStyle = '#eaf5f4';
-    ctx.fillText('Candidate detail · zoom', left + 12, top + 18);
   }
   function drawPursuit(w, h) {
     const xy = world(w, h, [-1, -1, 6, 6]); drawAxes(xy, [-1, -1, 6, 6]);
@@ -157,18 +162,19 @@
     else drawPursuit(w, h);
   }
   function stop() { clearInterval(timer); timer = null; const button = document.getElementById('play'); if (button) button.textContent = 'Play ▶'; }
-  function replanGrid() {
+  function replanGrid(autoPlay = true) {
     stop();
     gridState.result = PlannerModel.plan(data.maps[gridState.mapName], gridState.start, gridState.goal,
       document.getElementById('algorithm').value, Number(document.getElementById('connectivity').value));
-    progress.max = Math.max(0, gridState.result.path.length - 1);
+    progress.max = Math.max(0, gridState.result.expanded.length + gridState.result.path.length - 1);
     progress.value = 0;
-    document.getElementById('play').disabled = gridState.result.path.length < 2;
-    document.getElementById('reset').disabled = gridState.result.path.length < 2;
+    document.getElementById('play').disabled = Number(progress.max) < 1;
+    document.getElementById('reset').disabled = Number(progress.max) < 1;
     status('grid-status', gridState.result.path.length
       ? `Route found. Click a free cell to move the ${gridState.mode}.`
       : 'No route connects these points. Move the start or goal.');
     draw();
+    if (autoPlay && Number(progress.max) > 0) document.getElementById('play').click();
   }
   function initGrid() {
     const maps = document.getElementById('map');
@@ -194,12 +200,12 @@
       const map = data.maps[gridState.mapName];
       if (point[0] < 0 || point[0] >= map.grid.length || point[1] < 0 || point[1] >= map.grid[0].length) return;
       if (map.grid[point[0]][point[1]]) {
-        status('grid-status', 'That cell is occupied. Choose a blue free cell.'); return;
+        status('grid-status', 'That cell is occupied. Choose a light free cell.'); return;
       }
       gridState[gridState.mode] = point;
       replanGrid();
     });
-    replanGrid();
+    replanGrid(false);
   }
   function updateDwaReadouts() {
     for (const id of ['weight-heading', 'weight-velocity', 'weight-obstacle']) {
@@ -207,6 +213,8 @@
     }
     document.getElementById('heading-value').textContent = `${document.getElementById('heading').value}°`;
     document.getElementById('sim-time-value').textContent = `${Number(document.getElementById('sim-time').value).toFixed(1)} s`;
+    document.getElementById('v-samples-value').textContent = document.getElementById('v-samples').value;
+    document.getElementById('w-samples-value').textContent = document.getElementById('w-samples').value;
   }
   function replanDwa() {
     stop();
@@ -216,16 +224,18 @@
       velocity: Number(document.getElementById('weight-velocity').value),
       obstacle: Number(document.getElementById('weight-obstacle').value) };
     dwaState.simTime = Number(document.getElementById('sim-time').value);
+    dwaState.config.vSamples = Number(document.getElementById('v-samples').value);
+    dwaState.config.wSamples = Number(document.getElementById('w-samples').value);
     status('dwa-status', 'Recalculating candidate motions and route…');
     requestAnimationFrame(() => {
       if (ticket !== replanTicket) return;
-      const result = DwaModel.run(dwaState.start, dwaState.goal, data.obstacles,
-        data.config, dwaState.weights, dwaState.simTime);
+      const result = DwaModel.run(dwaState.start, dwaState.goal, dwaState.obstacles,
+        dwaState.config, dwaState.weights, dwaState.simTime);
       dwaState.trajectory = result.trajectory;
       dwaState.success = result.success;
       candidateCache = null;
       progress.max = Math.max(0, result.trajectory.length - 1);
-      progress.value = 0;
+      progress.value = Math.min(20, progress.max);
       document.getElementById('play').disabled = result.trajectory.length < 2;
       status('dwa-status', result.success ? 'Goal reached. Click the map or adjust a parameter to try another run.'
         : 'The goal was not reached within 300 steps. Try new points or weights.');
@@ -236,27 +246,58 @@
     dwaState = { start: [...data.start], goal: [...data.goal], trajectory: data.trajectory,
       success: data.success, weights: { heading: data.defaults.heading,
         velocity: data.defaults.velocity, obstacle: data.defaults.obstacle },
-      simTime: data.defaults.simTime, mode: 'start' };
+      simTime: data.defaults.simTime, config: { ...data.config },
+      obstacles: data.obstacles.map(point => [...point]), mode: 'start' };
     for (const [id, value] of [['weight-heading', data.defaults.heading],
       ['weight-velocity', data.defaults.velocity], ['weight-obstacle', data.defaults.obstacle],
-      ['sim-time', data.defaults.simTime]]) document.getElementById(id).value = value;
+      ['sim-time', data.defaults.simTime], ['v-samples', data.config.vSamples],
+      ['w-samples', data.config.wSamples]]) document.getElementById(id).value = value;
     document.getElementById('heading').value = Math.round(data.start[2] * 180 / Math.PI);
     updateDwaReadouts();
     selectPoint('start');
     document.getElementById('set-start').addEventListener('click', () => selectPoint('start'));
     document.getElementById('set-goal').addEventListener('click', () => selectPoint('goal'));
-    for (const id of ['heading', 'weight-heading', 'weight-velocity', 'weight-obstacle', 'sim-time']) {
+    document.getElementById('add-obstacle').addEventListener('click', () => selectPoint('add-obstacle'));
+    document.getElementById('remove-obstacle').addEventListener('click', () => selectPoint('remove-obstacle'));
+    document.getElementById('restore-obstacles').addEventListener('click', () => {
+      dwaState.obstacles = data.obstacles.map(point => [...point]);
+      replanDwa();
+    });
+    for (const id of ['heading', 'weight-heading', 'weight-velocity', 'weight-obstacle', 'sim-time', 'v-samples', 'w-samples']) {
       document.getElementById(id).addEventListener('input', updateDwaReadouts);
       document.getElementById(id).addEventListener('change', replanDwa);
     }
     canvas.addEventListener('click', event => {
       const rect = canvas.getBoundingClientRect();
       const px = event.clientX - rect.left, py = event.clientY - rect.top;
-      const insetWidth = Math.min(250, rect.width * .42), insetHeight = Math.min(210, rect.height * .47);
-      if (px > rect.width - insetWidth - 15 && px < rect.width - 15 && py > 15 && py < insetHeight + 15) return;
       const [x, y] = world(rect.width, rect.height, [0, 0, 10, 10]).fromPixel(px, py);
       if (x < 0 || x > 10 || y < 0 || y > 10) return;
-      if (data.obstacles.some(obstacle => Math.hypot(x - obstacle[0], y - obstacle[1]) < data.config.radius + data.config.collisionTol)) {
+      const closest = dwaState.obstacles.reduce((best, obstacle, index) => {
+        const distance = Math.hypot(x - obstacle[0], y - obstacle[1]);
+        return distance < best.distance ? { index, distance } : best;
+      }, { index: -1, distance: Infinity });
+      if (dwaState.mode === 'remove-obstacle') {
+        if (closest.distance > .35) {
+          status('dwa-status', 'Click directly on a red obstacle to remove it.'); return;
+        }
+        dwaState.obstacles.splice(closest.index, 1);
+        replanDwa();
+        return;
+      }
+      if (dwaState.mode === 'add-obstacle') {
+        if (closest.distance < .35) {
+          status('dwa-status', 'There is already an obstacle here.'); return;
+        }
+        const clearance = dwaState.config.radius + dwaState.config.collisionTol;
+        if (Math.hypot(x - dwaState.start[0], y - dwaState.start[1]) < clearance ||
+            Math.hypot(x - dwaState.goal[0], y - dwaState.goal[1]) < clearance) {
+          status('dwa-status', 'Keep obstacles clear of the start and goal.'); return;
+        }
+        dwaState.obstacles.push([Number(x.toFixed(2)), Number(y.toFixed(2))]);
+        replanDwa();
+        return;
+      }
+      if (closest.distance < dwaState.config.radius + dwaState.config.collisionTol) {
         status('dwa-status', 'That point is too close to an obstacle. Choose a clear location.'); return;
       }
       if (dwaState.mode === 'start') dwaState.start = [Number(x.toFixed(2)), Number(y.toFixed(2)), dwaState.start[2]];
@@ -264,6 +305,7 @@
       replanDwa();
     });
     progress.max = data.trajectory.length - 1;
+    progress.value = Math.min(20, progress.max);
     draw();
   }
   function init() {
@@ -275,7 +317,13 @@
       if (Number(progress.max) < 1) return;
       if (Number(progress.value) >= Number(progress.max)) progress.value = 0;
       document.getElementById('play').textContent = 'Pause ❚❚';
-      timer = setInterval(() => { progress.value = Number(progress.value) + 1; draw(); if (Number(progress.value) >= Number(progress.max)) stop(); }, kind === 'grid' ? 150 : 55);
+      timer = setInterval(() => {
+        const step = kind === 'grid' && Number(progress.value) < gridState.result.expanded.length
+          ? Math.max(1, Math.ceil(gridState.result.expanded.length / 220)) : 1;
+        progress.value = Math.min(Number(progress.max), Number(progress.value) + step);
+        draw();
+        if (Number(progress.value) >= Number(progress.max)) stop();
+      }, 55);
     });
     document.getElementById('reset').addEventListener('click', () => {
       stop(); progress.value = 0; draw();
@@ -283,6 +331,7 @@
     });
     progress.addEventListener('input', () => { candidateCache = null; draw(); });
     window.addEventListener('resize', fit); fit();
+    if (kind === 'grid' && Number(progress.max) > 0) document.getElementById('play').click();
   }
   fetch(`data/${kind}.json`).then(response => { if (!response.ok) throw Error(`HTTP ${response.status}`); return response.json(); })
     .then(json => { data = json; init(); })

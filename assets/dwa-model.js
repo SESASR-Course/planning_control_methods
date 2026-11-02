@@ -7,13 +7,22 @@ window.DwaModel = (() => {
   };
   const wrap = angle => ((angle + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
 
+  function dynamicWindow(state, config) {
+    const speed = state[3], turn = state[4], dt = config.dt;
+    return {
+      linear: [Math.max(config.minLinVel, speed - dt * config.maxLinearAcc),
+               Math.min(config.maxLinVel, speed + dt * config.maxLinearAcc)],
+      angular: [Math.max(config.minAngVel, turn - dt * config.maxAngAcc),
+                Math.min(config.maxAngVel, turn + dt * config.maxAngAcc)]
+    };
+  }
+
   function candidates(state, goal, obstacles, config, weights, simTime) {
-    const [x, y, theta, speed, turn] = state;
+    const [x, y, theta] = state;
     const dt = config.dt;
-    const linear = linspace(Math.max(config.minLinVel, speed - dt * config.maxLinearAcc),
-                           Math.min(config.maxLinVel, speed + dt * config.maxLinearAcc), config.vSamples);
-    const angular = linspace(Math.max(config.minAngVel, turn - dt * config.maxAngAcc),
-                            Math.min(config.maxAngVel, turn + dt * config.maxAngAcc), config.wSamples);
+    const window = dynamicWindow(state, config);
+    const linear = linspace(window.linear[0], window.linear[1], config.vSamples);
+    const angular = linspace(window.angular[0], window.angular[1], config.wSamples);
     const localObstacles = obstacles.filter(point => Math.hypot(x - point[0], y - point[1]) < config.obstacleMaxDist);
     const steps = Math.max(2, Math.round(simTime / config.timeGranularity));
     const paths = [], commands = [], heading = [], velocity = [], clearance = [];
@@ -59,5 +68,5 @@ window.DwaModel = (() => {
     }
     return { trajectory, success };
   }
-  return { candidates, run };
+  return { candidates, dynamicWindow, run };
 })();

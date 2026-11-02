@@ -5,8 +5,8 @@ A static companion to the Python examples on [`main`](https://github.com/SESASR-
 ## Pages
 
 - [Home](index.html)
-- [Grid Search Planners](grid-search.html): choose from the six distinct maps in `main/2D_maps`, place start and goal on the map, compare BFS, Dijkstra, Greedy, and A* with four/eight connectivity, and replay each route over the planner cost map.
-- [DWA](dwa.html): place start and goal on the map, adjust the scoring weights and prediction horizon, replay the navigation run, and inspect the sampled trajectories in a zoomed view.
+- [Grid Search Planners](grid-search.html): choose from the six distinct maps in `main/2D_maps`, place start and goal on the map, compare BFS, Dijkstra, Greedy, and A* with four/eight connectivity, and replay the cell expansion followed by the route over the planner cost map.
+- [DWA](dwa.html): place start and goal, add or remove obstacles, adjust scoring weights, prediction horizon, and velocity sample counts, then replay the navigation run and inspect the sampled trajectories.
 - [Pure Pursuit](pure-pursuit.html): replay the controller simulation and inspect its lookahead target.
 
 ## Build locally
