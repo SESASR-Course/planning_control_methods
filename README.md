@@ -2,6 +2,8 @@
 
 Python examples of grid-based path planning and robot control methods for educational use.
 
+Try the interactive sessions on the [GitHub Page](https://sesasr-course.github.io/planning_control_methods/)!
+
 ## Content organization
 
 ### Path planners
