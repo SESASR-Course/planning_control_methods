@@ -5,7 +5,7 @@ A static companion to the Python examples on [`main`](https://github.com/SESASR-
 ## Pages
 
 - [Home](index.html)
-- [Grid Search Planners](grid-search.html): BFS, Dijkstra, Greedy, and A* with four/eight connectivity.
+- [Grid Search Planners](grid-search.html): choose from the six distinct maps in `main/2D_maps`, compare BFS, Dijkstra, Greedy, and A* with four/eight connectivity, and replay each route over the planner cost map.
 - [DWA](dwa.html): replay a generated navigation trajectory and inspect candidate trajectories.
 - [Pure Pursuit](pure-pursuit.html): replay the controller simulation and inspect its lookahead target.
 

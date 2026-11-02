@@ -28,21 +28,25 @@
     ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#091a26'; ctx.fillRect(0, 0, w, h);
   }
   function drawGrid(w, h) {
-    const rows = data.grid.length, cols = data.grid[0].length;
+    const map = data.maps[document.getElementById('map').value];
+    const rows = map.grid.length, cols = map.grid[0].length;
     const cell = Math.min((w - 28) / cols, (h - 28) / rows);
     const x0 = (w - cell * cols) / 2, y0 = (h - cell * rows) / 2;
     const xy = p => [x0 + (p[1] + .5) * cell, y0 + (p[0] + .5) * cell];
-    const result = data.results[`${document.getElementById('algorithm').value}-${document.getElementById('connectivity').value}`];
-    const visible = Math.round(result.visited.length * Number(progress.value) / 100);
+    const result = map.results[`${document.getElementById('algorithm').value}-${document.getElementById('connectivity').value}`];
+    const frame = Number(progress.value);
     for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-      ctx.fillStyle = data.grid[r][c] ? '#375464' : '#112c3a';
-      ctx.fillRect(x0 + c * cell + 1, y0 + r * cell + 1, cell - 2, cell - 2);
+      const value = map.costmap[r][c];
+      const level = Math.max(0, Math.min(1, (value - 1) / 99));
+      ctx.fillStyle = map.grid[r][c] ? '#293d49' : `hsl(203 75% ${92 - 52 * level}%)`;
+      ctx.fillRect(x0 + c * cell + .6, y0 + r * cell + .6, cell - 1.2, cell - 1.2);
     }
-    result.visited.slice(0, visible).forEach(p => { ctx.fillStyle = '#23665e'; ctx.fillRect(x0 + p[1] * cell + 1, y0 + p[0] * cell + 1, cell - 2, cell - 2); });
-    if (visible === result.visited.length) line(result.path, xy, colors.gold, Math.max(3, cell * .24));
-    dot(...xy(data.start), cell * .3, colors.mint);
-    dot(...xy(data.goal), cell * .3, colors.gold);
-    document.getElementById('explored').textContent = `${visible} / ${result.visited.length}`;
+    line(result.path.slice(0, frame + 1), xy, '#493015', Math.max(5, cell * .32));
+    line(result.path.slice(0, frame + 1), xy, colors.gold, Math.max(3, cell * .19));
+    dot(...xy(map.start), Math.max(5, cell * .3), colors.mint);
+    dot(...xy(map.goal), Math.max(5, cell * .3), '#ff916f');
+    dot(...xy(result.path[frame]), Math.max(5, cell * .27), '#0b5149');
+    document.getElementById('explored').textContent = result.visited.length;
     document.getElementById('path-length').textContent = `${result.cost} cells`;
   }
   function world(w, h, bounds) {
@@ -94,19 +98,35 @@
   }
   function stop() { clearInterval(timer); timer = null; const button = document.getElementById('play'); if (button) button.textContent = 'Play ▶'; }
   function init() {
-    if (kind !== 'grid') {
-      progress.max = kind === 'dwa' ? data.trajectory.length - 1 : data.samples.length - 1;
-      document.getElementById('play').addEventListener('click', () => {
-        if (timer) return stop();
-        if (Number(progress.value) >= Number(progress.max)) progress.value = 0;
-        document.getElementById('play').textContent = 'Pause ❚❚';
-        timer = setInterval(() => { progress.value = Number(progress.value) + 1; draw(); if (Number(progress.value) >= Number(progress.max)) stop(); }, 55);
-      });
-      document.getElementById('reset').addEventListener('click', () => { stop(); progress.value = 0; draw(); });
+    if (kind === 'grid') {
+      const maps = document.getElementById('map');
+      Object.keys(data.maps).forEach(name => maps.add(new Option(name, name)));
+      maps.value = data.default;
+      const resetGrid = () => {
+        stop();
+        const map = data.maps[maps.value];
+        const key = `${document.getElementById('algorithm').value}-${document.getElementById('connectivity').value}`;
+        progress.max = map.results[key].path.length - 1;
+        progress.value = 0;
+        draw();
+      };
+      maps.addEventListener('change', resetGrid);
+      document.getElementById('algorithm').addEventListener('change', resetGrid);
+      document.getElementById('connectivity').addEventListener('change', resetGrid);
+      resetGrid();
     } else {
-      document.getElementById('algorithm').addEventListener('change', draw);
-      document.getElementById('connectivity').addEventListener('change', draw);
+      progress.max = kind === 'dwa' ? data.trajectory.length - 1 : data.samples.length - 1;
     }
+    document.getElementById('play').addEventListener('click', () => {
+      if (timer) return stop();
+      if (Number(progress.value) >= Number(progress.max)) progress.value = 0;
+      document.getElementById('play').textContent = 'Pause ❚❚';
+      timer = setInterval(() => { progress.value = Number(progress.value) + 1; draw(); if (Number(progress.value) >= Number(progress.max)) stop(); }, kind === 'grid' ? 150 : 55);
+    });
+    document.getElementById('reset').addEventListener('click', () => {
+      stop(); progress.value = 0; draw();
+      if (kind === 'grid') document.getElementById('play').click();
+    });
     progress.addEventListener('input', draw);
     window.addEventListener('resize', fit); fit();
   }
