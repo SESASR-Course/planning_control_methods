@@ -2,6 +2,8 @@
 
 Python examples of grid-based path planning and robot control methods for educational use.
 
+Try the interactive sessions on the [GitHub Page](https://sesasr-course.github.io/planning_control_methods/)!
+
 ## Content organization
 
 ### Path planners
@@ -18,7 +20,8 @@ Python examples of grid-based path planning and robot control methods for educat
 The [`planner_comparison.ipynb`](Path_Planners/planner_comparison.ipynb) notebook compares the four planners with four- and eight-connected movement on a sample map. [`utils.py`](Path_Planners/utils.py) provides map loading, movement definitions, and plotting helpers. Sample map images and occupancy-map data are in [`2D_maps/`](2D_maps/).
 
 <p align="center">
-  <img src=./readme_images/Movements4Connectivity_algorithms.gif alt="Grid Planners" width="400">
+  <img src=./readme_images/Movements4Connectivity_algorithms.gif alt="Grid Planners 4" width="400">
+  <img src=./readme_images/Movements8Connectivity_algorithms.gif alt="Grid Planners 8" width="400">
 </p>
 
 
