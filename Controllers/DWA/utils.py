@@ -58,6 +58,8 @@ def calc_nearest_obs(robot_pose, obstacles, obstacle_max_dist=3):
     Filter obstacles: find the ones in the local map considered for obstacle avoidance.
     """
     nearest_obs = []
+    distances = []
+    distances = np.linalg.norm(obstacles - robot_pose[0:2], axis=1)
     
     for obs in obstacles:
         temp_dist_to_obs = np.linalg.norm(robot_pose[0:2]-obs)
@@ -65,7 +67,7 @@ def calc_nearest_obs(robot_pose, obstacles, obstacle_max_dist=3):
         if temp_dist_to_obs < obstacle_max_dist :
             nearest_obs.append(obs)
 
-    return np.array(nearest_obs)
+    return np.array(nearest_obs), distances 
 
 def normalize_angle(theta):
     """
