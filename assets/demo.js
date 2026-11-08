@@ -215,6 +215,10 @@
     dot(...xy(dwaState.start), 7, colors.mint);
     diamond(...xy(dwaState.goal), 10, '#ff9e72');
     drawRobot(state, xy, '#f8f8ef');
+    if (dwaState.event === 'collision' && end === dwaState.trajectory.length - 1) {
+      ctx.beginPath(); ctx.arc(...xy(state), 14, 0, 2 * Math.PI);
+      ctx.strokeStyle = '#e17b83'; ctx.lineWidth = 3; ctx.stroke();
+    }
     drawVelocityPlot(end);
     drawWindowPlot(state, sample);
     document.getElementById('candidate-count').textContent = `${dwaState.config.vSamples} × ${dwaState.config.wSamples} = ${sample.paths.length}`;
@@ -306,32 +310,41 @@
     dwaState.config.vSamples = Number(document.getElementById('v-samples').value);
     dwaState.config.wSamples = Number(document.getElementById('w-samples').value);
     status('dwa-status', 'Recalculating candidate motions and route…');
+    status('dwa-event', 'Calculating route…');
+    document.getElementById('play').disabled = true;
     requestAnimationFrame(() => {
       if (ticket !== replanTicket) return;
       const result = DwaModel.run(dwaState.start, dwaState.goal, dwaState.obstacles,
         dwaState.config, dwaState.weights, dwaState.simTime);
       dwaState.trajectory = result.trajectory;
       dwaState.success = result.success;
+      dwaState.event = result.event;
       candidateCache = null;
       progress.max = Math.max(0, result.trajectory.length - 1);
       progress.value = Math.min(20, progress.max);
       document.getElementById('play').disabled = result.trajectory.length < 2;
-      status('dwa-status', result.success ? 'Goal reached. Click the map or adjust a parameter to try another run.'
-        : 'The goal was not reached within 300 steps. Try new points or weights.');
+      const finalStep = result.trajectory.length - 1;
+      const outcome = result.event === 'collision'
+        ? `Collision at step ${finalStep} near obstacle (${result.collision.obstacle[0].toFixed(2)}, ${result.collision.obstacle[1].toFixed(2)}). Route stopped within ${(dwaState.config.radius + dwaState.config.collisionTol).toFixed(2)} m of the obstacle (robot radius + 0.25 m tolerance).`
+        : result.event === 'goal' ? `Goal reached at step ${finalStep}.`
+          : `Step limit reached after ${finalStep} steps without reaching the goal.`;
+      status('dwa-event', outcome);
+      status('dwa-status', outcome);
       draw();
     });
   }
   function initDwa() {
-    dwaState = { start: [...data.start], goal: [...data.goal], trajectory: data.trajectory,
+    dwaState = { start: [...data.start], goal: [...data.goal], trajectory: [[...data.start, 0, 0]],
       success: data.success, weights: { heading: data.defaults.heading,
         velocity: data.defaults.velocity, obstacle: data.defaults.obstacle },
-      simTime: data.defaults.simTime, config: { ...data.config },
+      simTime: data.defaults.simTime, config: { ...data.config, collisionTol: 0.25 },
       obstacles: data.obstacles.map(point => [...point]), mode: 'start' };
     for (const [id, value] of [['weight-heading', data.defaults.heading],
       ['weight-velocity', data.defaults.velocity], ['weight-obstacle', data.defaults.obstacle],
       ['sim-time', data.defaults.simTime], ['v-samples', data.config.vSamples],
       ['w-samples', data.config.wSamples]]) document.getElementById(id).value = value;
     document.getElementById('heading').value = Math.round(data.start[2] * 180 / Math.PI);
+    document.getElementById('max-steps').value = dwaState.config.maxSteps;
     updateDwaReadouts();
     selectPoint('start');
     document.getElementById('set-start').addEventListener('click', () => selectPoint('start'));
@@ -346,6 +359,11 @@
       document.getElementById(id).addEventListener('input', updateDwaReadouts);
       document.getElementById(id).addEventListener('change', replanDwa);
     }
+    document.getElementById('step-limit-form').addEventListener('submit', event => {
+      event.preventDefault();
+      dwaState.config.maxSteps = Number(document.getElementById('max-steps').value);
+      replanDwa();
+    });
     canvas.addEventListener('click', event => {
       const rect = canvas.getBoundingClientRect();
       const px = event.clientX - rect.left, py = event.clientY - rect.top;
@@ -383,9 +401,10 @@
       else dwaState.goal = [Number(x.toFixed(2)), Number(y.toFixed(2))];
       replanDwa();
     });
-    progress.max = data.trajectory.length - 1;
-    progress.value = Math.min(20, progress.max);
-    draw();
+    progress.max = 0;
+    progress.value = 0;
+    document.getElementById('play').disabled = true;
+    replanDwa();
   }
   function init() {
     if (kind === 'grid') initGrid();

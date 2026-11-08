@@ -56,17 +56,37 @@ window.DwaModel = (() => {
 
   function run(start, goal, obstacles, config, weights, simTime) {
     const trajectory = [[start[0], start[1], start[2], 0, 0]];
-    let success = false;
+    const clearance = config.radius + config.collisionTol;
+    function collision(from, to) {
+      const dx = to[0] - from[0], dy = to[1] - from[1];
+      const lengthSq = dx * dx + dy * dy;
+      for (const obstacle of obstacles) {
+        const t = lengthSq ? Math.max(0, Math.min(1,
+          ((obstacle[0] - from[0]) * dx + (obstacle[1] - from[1]) * dy) / lengthSq)) : 0;
+        const distance = Math.hypot(from[0] + t * dx - obstacle[0], from[1] + t * dy - obstacle[1]);
+        if (distance < clearance) return { obstacle, distance };
+      }
+      return null;
+    }
+    const initialCollision = collision(trajectory[0], trajectory[0]);
+    if (initialCollision) return { trajectory, success: false, event: 'collision', collision: initialCollision };
     for (let step = 0; step < config.maxSteps; step++) {
       const state = trajectory[trajectory.length - 1];
-      if (Math.hypot(state[0] - goal[0], state[1] - goal[1]) < config.goalDistTol) { success = true; break; }
+      if (Math.hypot(state[0] - goal[0], state[1] - goal[1]) < config.goalDistTol) {
+        return { trajectory, success: true, event: 'goal' };
+      }
       const sample = candidates(state, goal, obstacles, config, weights, simTime);
       const [v, w] = sample.commands[sample.chosen];
-      trajectory.push([state[0] + v * Math.cos(state[2]) * config.dt,
-                       state[1] + v * Math.sin(state[2]) * config.dt,
-                       state[2] + w * config.dt, v, w]);
+      const next = [state[0] + v * Math.cos(state[2]) * config.dt,
+                    state[1] + v * Math.sin(state[2]) * config.dt,
+                    state[2] + w * config.dt, v, w];
+      trajectory.push(next);
+      const hit = collision(state, next);
+      if (hit) return { trajectory, success: false, event: 'collision', collision: hit };
     }
-    return { trajectory, success };
+    const finalState = trajectory[trajectory.length - 1];
+    const success = Math.hypot(finalState[0] - goal[0], finalState[1] - goal[1]) < config.goalDistTol;
+    return { trajectory, success, event: success ? 'goal' : 'step-limit' };
   }
   return { candidates, dynamicWindow, run };
 })();
