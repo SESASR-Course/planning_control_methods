@@ -40,6 +40,13 @@
     canvas.width = Math.round(rect.width * ratio);
     canvas.height = Math.round(rect.height * ratio);
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    if (kind === 'dwa') for (const id of ['velocity-plot', 'window-plot']) {
+      const chart = document.getElementById(id);
+      const size = chart.getBoundingClientRect();
+      chart.width = Math.round(size.width * ratio);
+      chart.height = Math.round(size.height * ratio);
+      chart.getContext('2d').setTransform(ratio, 0, 0, ratio, 0, 0);
+    }
     if (data) draw();
   }
   function line(points, xy, color, width = 2, dash = []) {
@@ -114,6 +121,81 @@
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(p[2]) * 18, y - Math.sin(p[2]) * 18);
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
   }
+  function drawVelocityPlot(end) {
+    const chart = document.getElementById('velocity-plot');
+    const g = chart.getContext('2d');
+    const { width: w, height: h } = chart.getBoundingClientRect();
+    g.clearRect(0, 0, w, h);
+    const left = 58, right = w - 16, top = 25, bottom = h - 25;
+    const gap = 34, band = (bottom - top - gap) / 2;
+    const last = Math.max(1, dwaState.trajectory.length - 1);
+    const x = step => left + (right - left) * step / last;
+    const series = [
+      { index: 3, name: 'v', unit: 'm/s', min: dwaState.config.minLinVel, max: dwaState.config.maxLinVel, color: colors.mint },
+      { index: 4, name: 'ω', unit: 'rad/s', min: dwaState.config.minAngVel, max: dwaState.config.maxAngVel, color: colors.gold }
+    ];
+    g.font = '12px sans-serif';
+    series.forEach((item, row) => {
+      const y0 = top + row * (band + gap);
+      const y = value => y0 + band * (item.max - value) / (item.max - item.min);
+      g.strokeStyle = '#254051'; g.lineWidth = 1;
+      g.strokeRect(left, y0, right - left, band);
+      if (item.min < 0 && item.max > 0) {
+        g.setLineDash([4, 4]); g.beginPath(); g.moveTo(left, y(0)); g.lineTo(right, y(0)); g.stroke(); g.setLineDash([]);
+      }
+      g.fillStyle = item.color;
+      g.fillText(`${item.name} (${item.unit})`, left, y0 - 8);
+      g.fillStyle = '#a3b6bd'; g.textAlign = 'right';
+      g.fillText(item.max.toFixed(2), left - 7, y0 + 4);
+      g.fillText(item.min.toFixed(2), left - 7, y0 + band + 4);
+      g.textAlign = 'left';
+      g.beginPath();
+      dwaState.trajectory.slice(0, end + 1).forEach((state, step) => {
+        if (step) g.lineTo(x(step), y(state[item.index]));
+        else g.moveTo(x(step), y(state[item.index]));
+      });
+      g.strokeStyle = item.color; g.lineWidth = 2.5; g.stroke();
+      g.beginPath(); g.arc(x(end), y(dwaState.trajectory[end][item.index]), 4, 0, 2 * Math.PI); g.fillStyle = item.color; g.fill();
+    });
+    g.setLineDash([4, 4]); g.beginPath(); g.moveTo(x(end), top); g.lineTo(x(end), bottom);
+    g.strokeStyle = '#eaf5f4aa'; g.lineWidth = 1; g.stroke(); g.setLineDash([]);
+    g.fillStyle = '#a3b6bd'; g.textAlign = 'left'; g.fillText('0', left, h - 6);
+    g.textAlign = 'right'; g.fillText(`${last} steps`, right, h - 6); g.textAlign = 'left';
+  }
+  function drawWindowPlot(state, sample) {
+    const chart = document.getElementById('window-plot');
+    const g = chart.getContext('2d');
+    const { width: w, height: h } = chart.getBoundingClientRect();
+    g.clearRect(0, 0, w, h);
+    const c = dwaState.config, limits = DwaModel.dynamicWindow(state, c);
+    const left = 64, right = w - 20, top = 18, bottom = h - 44;
+    const x = v => left + (right - left) * (v - c.minLinVel) / (c.maxLinVel - c.minLinVel);
+    const y = omega => bottom - (bottom - top) * (omega - c.minAngVel) / (c.maxAngVel - c.minAngVel);
+    const rectX = x(limits.linear[0]), rectY = y(limits.angular[1]);
+    const rectW = x(limits.linear[1]) - rectX, rectH = y(limits.angular[0]) - rectY;
+    g.fillStyle = '#6ce0bd25'; g.fillRect(rectX, rectY, rectW, rectH);
+    g.strokeStyle = colors.mint; g.lineWidth = 2; g.strokeRect(rectX, rectY, rectW, rectH);
+    g.strokeStyle = '#254051'; g.lineWidth = 1; g.strokeRect(left, top, right - left, bottom - top);
+    if (c.minAngVel < 0 && c.maxAngVel > 0) {
+      g.setLineDash([4, 4]); g.beginPath(); g.moveTo(left, y(0)); g.lineTo(right, y(0)); g.stroke(); g.setLineDash([]);
+    }
+    sample.commands.forEach(([v, omega]) => {
+      g.beginPath(); g.arc(x(v), y(omega), 2, 0, 2 * Math.PI); g.fillStyle = colors.blue; g.fill();
+    });
+    const [chosenV, chosenW] = sample.commands[sample.chosen];
+    g.beginPath(); g.arc(x(chosenV), y(chosenW), 6, 0, 2 * Math.PI);
+    g.fillStyle = '#42f5a4'; g.fill(); g.strokeStyle = '#091a26'; g.lineWidth = 2; g.stroke();
+    g.beginPath(); g.arc(x(state[3]), y(state[4]), 4, 0, 2 * Math.PI);
+    g.fillStyle = '#f8f8ef'; g.fill(); g.strokeStyle = '#091a26'; g.stroke();
+    g.font = '12px sans-serif'; g.fillStyle = '#a3b6bd';
+    g.textAlign = 'right'; g.fillText(c.maxAngVel.toFixed(2), left - 8, top + 4);
+    g.fillText('0', left - 8, y(0) + 4); g.fillText(c.minAngVel.toFixed(2), left - 8, bottom + 4);
+    g.textAlign = 'left'; g.fillText(c.minLinVel.toFixed(2), left, bottom + 17);
+    g.textAlign = 'right'; g.fillText(c.maxLinVel.toFixed(2), right, bottom + 17);
+    g.textAlign = 'center'; g.fillText('v (m/s)', (left + right) / 2, h - 5);
+    g.save(); g.translate(15, (top + bottom) / 2); g.rotate(-Math.PI / 2);
+    g.fillText('ω (rad/s)', 0, 0); g.restore();
+  }
   function drawDwa(w, h) {
     const xy = world(w, h, [0, 0, 10, 10]); drawAxes(xy, [0, 0, 10, 10]);
     const end = Math.min(Number(progress.value), dwaState.trajectory.length - 1);
@@ -133,14 +215,11 @@
     dot(...xy(dwaState.start), 7, colors.mint);
     diamond(...xy(dwaState.goal), 10, '#ff9e72');
     drawRobot(state, xy, '#f8f8ef');
-    const limits = DwaModel.dynamicWindow(state, dwaState.config);
-    document.getElementById('v-window').textContent = `${limits.linear[0].toFixed(2)}–${limits.linear[1].toFixed(2)} m/s`;
-    document.getElementById('w-window').textContent = `${limits.angular[0].toFixed(2)}–${limits.angular[1].toFixed(2)} rad/s`;
+    drawVelocityPlot(end);
+    drawWindowPlot(state, sample);
     document.getElementById('candidate-count').textContent = `${dwaState.config.vSamples} × ${dwaState.config.wSamples} = ${sample.paths.length}`;
     document.getElementById('obstacle-count').textContent = dwaState.obstacles.length;
     document.getElementById('step-value').textContent = end;
-    document.getElementById('position').textContent = `${state[0].toFixed(1)}, ${state[1].toFixed(1)} m`;
-    document.getElementById('speed').textContent = `${state[3].toFixed(2)} m/s`;
   }
   function drawPursuit(w, h) {
     const xy = world(w, h, [-1, -1, 6, 6]); drawAxes(xy, [-1, -1, 6, 6]);

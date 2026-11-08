@@ -2,6 +2,8 @@
 
 A companion page to the Python examples on [`main`](https://github.com/SESASR-Course/planning_control_methods/tree/main): grid search planners, Dynamic Window Approach (DWA), and Pure Pursuit. The site uses HTML, CSS, and browser JavaScript. A Python build step runs the implementations from `main` and exports data for browser plots and animations; no Python runtime or server is needed on GitHub Pages.
 
+Visit the [interactive Planning and Control webpage](https://sesasr-course.github.io/planning_control_methods/).
+
 ## Pages
 
 - [Home](index.html)
