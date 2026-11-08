@@ -54,9 +54,9 @@ window.DwaModel = (() => {
     return { paths, commands, chosen };
   }
 
-  function run(start, goal, obstacles, config, weights, simTime) {
+  function run(start, goal, obstacles, config, weights, simTime, obstacleTolerance) {
     const trajectory = [[start[0], start[1], start[2], 0, 0]];
-    const clearance = config.radius + config.collisionTol;
+    const clearance = config.radius + obstacleTolerance;
     function collision(from, to) {
       const dx = to[0] - from[0], dy = to[1] - from[1];
       const lengthSq = dx * dx + dy * dy;

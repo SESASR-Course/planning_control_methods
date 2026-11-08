@@ -315,7 +315,7 @@
     requestAnimationFrame(() => {
       if (ticket !== replanTicket) return;
       const result = DwaModel.run(dwaState.start, dwaState.goal, dwaState.obstacles,
-        dwaState.config, dwaState.weights, dwaState.simTime);
+        dwaState.config, dwaState.weights, dwaState.simTime, dwaState.obstacleTolerance);
       dwaState.trajectory = result.trajectory;
       dwaState.success = result.success;
       dwaState.event = result.event;
@@ -325,7 +325,7 @@
       document.getElementById('play').disabled = result.trajectory.length < 2;
       const finalStep = result.trajectory.length - 1;
       const outcome = result.event === 'collision'
-        ? `Collision at step ${finalStep} near obstacle (${result.collision.obstacle[0].toFixed(2)}, ${result.collision.obstacle[1].toFixed(2)}). Route stopped within ${(dwaState.config.radius + dwaState.config.collisionTol).toFixed(2)} m of the obstacle (robot radius + 0.25 m tolerance).`
+        ? `Collision at step ${finalStep} near obstacle (${result.collision.obstacle[0].toFixed(2)}, ${result.collision.obstacle[1].toFixed(2)}). Route stopped within ${(dwaState.config.radius + dwaState.obstacleTolerance).toFixed(2)} m of the obstacle (robot radius + ${dwaState.obstacleTolerance.toFixed(2)} m tolerance).`
         : result.event === 'goal' ? `Goal reached at step ${finalStep}.`
           : `Step limit reached after ${finalStep} steps without reaching the goal.`;
       status('dwa-event', outcome);
@@ -337,7 +337,7 @@
     dwaState = { start: [...data.start], goal: [...data.goal], trajectory: [[...data.start, 0, 0]],
       success: data.success, weights: { heading: data.defaults.heading,
         velocity: data.defaults.velocity, obstacle: data.defaults.obstacle },
-      simTime: data.defaults.simTime, config: { ...data.config, collisionTol: 0.25 },
+      simTime: data.defaults.simTime, config: { ...data.config }, obstacleTolerance: 0.25,
       obstacles: data.obstacles.map(point => [...point]), mode: 'start' };
     for (const [id, value] of [['weight-heading', data.defaults.heading],
       ['weight-velocity', data.defaults.velocity], ['weight-obstacle', data.defaults.obstacle],
@@ -345,6 +345,7 @@
       ['w-samples', data.config.wSamples]]) document.getElementById(id).value = value;
     document.getElementById('heading').value = Math.round(data.start[2] * 180 / Math.PI);
     document.getElementById('max-steps').value = dwaState.config.maxSteps;
+    document.getElementById('obstacle-tolerance').value = dwaState.obstacleTolerance;
     updateDwaReadouts();
     selectPoint('start');
     document.getElementById('set-start').addEventListener('click', () => selectPoint('start'));
@@ -362,6 +363,11 @@
     document.getElementById('step-limit-form').addEventListener('submit', event => {
       event.preventDefault();
       dwaState.config.maxSteps = Number(document.getElementById('max-steps').value);
+      replanDwa();
+    });
+    document.getElementById('obstacle-tolerance-form').addEventListener('submit', event => {
+      event.preventDefault();
+      dwaState.obstacleTolerance = Number(document.getElementById('obstacle-tolerance').value);
       replanDwa();
     });
     canvas.addEventListener('click', event => {
