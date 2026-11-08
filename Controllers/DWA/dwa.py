@@ -68,8 +68,15 @@ class DWA():
             # 3. Compute command for the robot with DWA controller
             u = self.compute_cmd(goal_pose, self.robot.pose, self.obstacles)
 
-            # 4. Send the command or update the robot pose
+            # 4. Send the command and/or update the robot pose
             pose = self.robot.update_state(u, self.dt)
+
+            # Check if the robot is in collision with obstacles
+            nearest_obs, dist_to_obs = calc_nearest_obs(pose, self.obstacles) # nearest_obs = [x, y, distance] of the nearest obstacle
+            min_dist_to_obs = np.min(dist_to_obs) if nearest_obs is not None else None
+            if nearest_obs is not None and min_dist_to_obs < 0.25:
+                print("Collision with obstacle at step ", steps, " distance: ", min_dist_to_obs, " Robot pose: ", pose)
+                break
             
             # 5. Provide intermediate task feedback
             if steps % self.feedback_rate == 0:
@@ -170,7 +177,7 @@ class DWA():
         J = w_h * heading + w_v * vel + w_o * obst_dist
         """
         # detect nearest obstacle
-        nearest_obs = calc_nearest_obs(robot_pose, obstacles)
+        nearest_obs, _ = calc_nearest_obs(robot_pose, obstacles)
 
         # Compute the scores for the generated path
         # (1) heading_angle and goal distance
