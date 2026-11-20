@@ -34,9 +34,8 @@ class DWA():
         self.weight_obs = weight_obs
 
         self.obstacle_max_dist = 3 # like a local costmap size
-        self.max_num_steps = 300
+        self.max_num_steps = 400
         self.feedback_rate = 50
-        self.obst_tolerance = 0.5
 
     def go_to_pose(self, goal_pose):
         """
@@ -74,7 +73,7 @@ class DWA():
             # Check if the robot is in collision with obstacles
             nearest_obs, dist_to_obs = calc_nearest_obs(pose, self.obstacles) # nearest_obs = [x, y, distance] of the nearest obstacle
             min_dist_to_obs = np.min(dist_to_obs) if nearest_obs is not None else None
-            if nearest_obs is not None and min_dist_to_obs < 0.25:
+            if nearest_obs is not None and min_dist_to_obs < self.robot.radius + self.collision_tol:
                 print("Collision with obstacle at step ", steps, " distance: ", min_dist_to_obs, " Robot pose: ", pose)
                 break
             
