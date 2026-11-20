@@ -5,7 +5,7 @@
   const ctx = canvas.getContext('2d');
   const progress = document.getElementById('progress');
   const colors = { mint: '#6ce0bd', gold: '#ffca79', blue: '#80b4ff', muted: '#5b7784' };
-  let data, timer, gridState, dwaState, candidateCache, replanTicket = 0;
+  let data, timer, gridState, dwaState, pursuitState, pursuitRoute, candidateCache, replanTicket = 0;
 
   function status(id, message) { document.getElementById(id).textContent = message; }
   function selectPoint(mode) {
@@ -227,11 +227,22 @@
   }
   function drawPursuit(w, h) {
     const xy = world(w, h, [-1, -1, 6, 6]); drawAxes(xy, [-1, -1, 6, 6]);
-    line(data.path, xy, '#607d9b', 2, [6, 5]);
-    data.waypoints.forEach(p => dot(...xy(p), 4, '#a3b6bd'));
-    const end = Number(progress.value), sample = data.samples[end];
-    line(data.samples.slice(0, end + 1).map(p => [p[1], p[2]]), xy, colors.mint, 3);
-    const target = data.lookahead_path[sample[5]];
+    const route = pursuitState ? pursuitState.lookahead_path : pursuitRoute.waypoints;
+    line(route, xy, '#607d9b', 2, [6, 5]);
+    pursuitRoute.waypoints.forEach((point, index) => {
+      const [px, py] = xy(point);
+      dot(px, py, 4, '#a3b6bd');
+      ctx.fillStyle = '#eaf5f4'; ctx.font = '12px sans-serif';
+      ctx.fillText(String(index + 1), px + 8, py - 7);
+    });
+    if (!pursuitState) {
+      document.getElementById('time').textContent = '—';
+      document.getElementById('speed').textContent = '—';
+      return;
+    }
+    const end = Number(progress.value), sample = pursuitState.samples[end];
+    line(pursuitState.samples.slice(0, end + 1).map(p => [p[1], p[2]]), xy, colors.mint, 3);
+    const target = pursuitState.lookahead_path[sample[5]];
     line([[sample[1], sample[2]], target], xy, '#ffca7980', 1.5, [5, 4]);
     dot(...xy(target), 7, colors.gold);
     drawRobot([sample[1], sample[2], sample[3]], xy, colors.mint);
@@ -245,6 +256,90 @@
     else drawPursuit(w, h);
   }
   function stop() { clearInterval(timer); timer = null; const button = document.getElementById('play'); if (button) button.textContent = 'Play ▶'; }
+  function updatePursuitReadouts() {
+    document.getElementById('target-vel-value').textContent = `${Number(document.getElementById('target-vel').value).toFixed(2)} m/s`;
+    document.getElementById('lookahead-value').textContent = `${Number(document.getElementById('lookahead').value).toFixed(2)} m`;
+    document.getElementById('kp-value').textContent = Number(document.getElementById('kp').value).toFixed(1);
+  }
+  const pursuitPresets = {
+    zigzag: [[0, 0], [1, 3.5], [2.5, 1], [4, 4.5], [5, 2]],
+    loop: [[0, 0], [0, 5], [5, 5], [5, 0], [0, 0]]
+  };
+  function selectPursuitRoute(name) {
+    stop();
+    const waypoints = name === 'example' ? data.waypoints
+      : name === 'custom' ? [] : pursuitPresets[name];
+    pursuitRoute = { name, waypoints: waypoints.map(point => [...point]) };
+    canvas.style.cursor = name === 'custom' ? 'crosshair' : 'default';
+    pursuitState = null;
+    progress.max = 0; progress.value = 0;
+    document.getElementById('play').disabled = true;
+    document.getElementById('reset').disabled = true;
+    document.getElementById('start-route').disabled = waypoints.length < 2;
+    for (const option of ['example', 'zigzag', 'loop', 'custom']) {
+      const button = document.getElementById(`route-${option}`);
+      button.classList.toggle('active', option === name);
+      button.setAttribute('aria-pressed', String(option === name));
+    }
+    status('route-status', name === 'custom'
+      ? 'Click the plot to place waypoint 1, then continue in order. Add at least two points.'
+      : `${waypoints.length} waypoints ready. Press Start simulation to interpolate the route.`);
+    draw();
+  }
+  function replanPursuit(autoPlay = false) {
+    stop();
+    if (pursuitRoute.waypoints.length < 2) return;
+    const first = pursuitRoute.waypoints[0], second = pursuitRoute.waypoints[1];
+    const initialYaw = pursuitRoute.name === 'example' ? 1.570
+      : Math.atan2(second[1] - first[1], second[0] - first[0]);
+    pursuitState = PurePursuitModel.run(pursuitRoute.waypoints, {
+      targetVel: Number(document.getElementById('target-vel').value),
+      Lt: Number(document.getElementById('lookahead').value),
+      kp: Number(document.getElementById('kp').value), initialYaw
+    });
+    progress.max = pursuitState.samples.length - 1;
+    progress.value = 0;
+    document.getElementById('play').disabled = false;
+    document.getElementById('reset').disabled = false;
+    status('route-status', `${pursuitRoute.waypoints.length} waypoints interpolated into ${pursuitState.lookahead_path.length} path points.`);
+    draw();
+    if (autoPlay) document.getElementById('play').click();
+  }
+  function initPursuit() {
+    for (const name of ['example', 'zigzag', 'loop', 'custom']) {
+      document.getElementById(`route-${name}`).addEventListener('click', () => selectPursuitRoute(name));
+    }
+    document.getElementById('start-route').addEventListener('click', () => replanPursuit(true));
+    canvas.addEventListener('click', event => {
+      if (pursuitRoute.name !== 'custom') return;
+      const rect = canvas.getBoundingClientRect();
+      const [x, y] = world(rect.width, rect.height, [-1, -1, 6, 6])
+        .fromPixel(event.clientX - rect.left, event.clientY - rect.top);
+      if (x < 0 || x > 5 || y < 0 || y > 5) {
+        status('route-status', 'Place waypoints inside the 0–5 m plot area.'); return;
+      }
+      const last = pursuitRoute.waypoints[pursuitRoute.waypoints.length - 1];
+      if (last && Math.hypot(x - last[0], y - last[1]) < 0.1) {
+        status('route-status', 'Place the next waypoint at least 0.1 m from the previous one.'); return;
+      }
+      stop(); pursuitState = null;
+      progress.max = 0; progress.value = 0;
+      document.getElementById('play').disabled = true;
+      document.getElementById('reset').disabled = true;
+      pursuitRoute.waypoints.push([Number(x.toFixed(2)), Number(y.toFixed(2))]);
+      const count = pursuitRoute.waypoints.length;
+      document.getElementById('start-route').disabled = count < 2;
+      status('route-status', `${count} waypoint${count === 1 ? '' : 's'} placed in order. ${count < 2 ? 'Add another point.' : 'Press Start simulation when ready.'}`);
+      draw();
+    });
+    for (const id of ['target-vel', 'lookahead', 'kp']) {
+      const input = document.getElementById(id);
+      input.addEventListener('input', updatePursuitReadouts);
+      input.addEventListener('change', () => { if (pursuitState) replanPursuit(true); });
+    }
+    updatePursuitReadouts();
+    selectPursuitRoute('example');
+  }
   function replanGrid(autoPlay = true) {
     stop();
     gridState.result = PlannerModel.plan(data.maps[gridState.mapName], gridState.start, gridState.goal,
@@ -415,7 +510,7 @@
   function init() {
     if (kind === 'grid') initGrid();
     else if (kind === 'dwa') initDwa();
-    else progress.max = data.samples.length - 1;
+    else initPursuit();
     document.getElementById('play').addEventListener('click', () => {
       if (timer) return stop();
       if (Number(progress.max) < 1) return;

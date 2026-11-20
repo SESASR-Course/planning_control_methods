@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 230" role="img" aria-labelledby="title description">
+  <title id="title">Pure Pursuit geometry</title>
+  <desc id="description">A green robot points right along its heading. An orange lookahead point lies above and ahead on a green circular arc. The chord to the point is L, its lateral offset is y sub l, and the turning radius is r.</desc>
+  <defs>
+    <marker id="heading-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10Z" fill="#a3b6bd"/>
+    </marker>
+  </defs>
+  <path d="M30 190H354" stroke="#a3b6bd" stroke-width="1.5" stroke-dasharray="5 5" marker-end="url(#heading-arrow)"/>
+  <path d="M80 20V190M80 20 224 110" stroke="#607d9b" stroke-width="1.5"/>
+  <path d="M80 190 224 110" stroke="#eaf5f4" stroke-width="2"/>
+  <path d="M224 110V190" stroke="#ffca79" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <path d="M80 190C150 190 203 156 224 110" fill="none" stroke="#6ce0bd" stroke-width="4" stroke-linecap="round"/>
+  <path d="M110 190A30 30 0 0 0 106 175" fill="none" stroke="#eaf5f4" stroke-width="1.5"/>
+  <circle cx="80" cy="190" r="8" fill="#6ce0bd"/>
+  <circle cx="224" cy="110" r="8" fill="#ffca79"/>
+  <circle cx="80" cy="20" r="3" fill="#607d9b"/>
+  <text x="64" y="215" fill="#eaf5f4">robot</text>
+  <text x="236" y="104" fill="#ffca79">lookahead point</text>
+  <text x="150" y="137" fill="#eaf5f4" font-style="italic">L</text>
+  <text x="53" y="102" fill="#a3b6bd" font-style="italic">r</text>
+  <text x="233" y="158" fill="#ffca79" font-style="italic">yₗ</text>
+  <text x="116" y="176" fill="#eaf5f4" font-style="italic">α</text>
+  <text x="311" y="181" fill="#a3b6bd">heading</text>
+</svg>
