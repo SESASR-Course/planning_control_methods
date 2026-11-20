@@ -31,9 +31,10 @@ def main():
         v_samples = 10, # num of linear velocity samples
         w_samples = 20, # num of angular velocity samples
         goal_dist_tol = 0.2, # tolerance to consider the goal reached
-        weight_angle = 0.06, # weight for heading angle to goal
-        weight_vel = 0.2, # weight for forward velocity
-        weight_obs = 0.04, # weight for obstacle distance
+        collision_tol = 0.25, # tolerance to consider the robot in collision with obstacles
+        weight_angle = 0.44, # weight for heading angle to goal
+        weight_vel = 0.5, # weight for forward velocity
+        weight_obs = 0.44, # weight for obstacle distance
         obstacles_map = obstacles, # if obstacles are known or a gridmap is available
         init_pose = init_pose, # initial robot pose
         max_linear_acc = 0.5, # m/s^2
@@ -47,6 +48,7 @@ def main():
 
     # start navigation invoking go_to_pose method
     done, robot_poses = controller.go_to_pose(goal_pose)
+    print("Navigation finish with success: ", done)
     
     # plot final robot path
     print("Final Robot pose: ", controller.robot.pose)
